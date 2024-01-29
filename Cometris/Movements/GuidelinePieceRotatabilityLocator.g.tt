@@ -1,0 +1,507 @@
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ parameter name="Configuration" type="string" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+<#
+#nullable enable
+var Orientations = new (string name, uint value)[]{ ("Up", 0), ("Right", 1), ("Down", 2), ("Left", 3)};
+var Rotations = new (string name, int offset)[]{ ("Clockwise", 1), ("CounterClockwise", -1)};
+var BitBoards = new [] {"PartialBitBoard256x2", "PartialBitBoard512"};
+var OffsetsUpIPiece = new Point[] { ( 0, 0), (-1, 0), (+2, 0), (-1, 0), (+2, 0)};
+var OffsetsRightIPiece = new Point[] { (-1, 0), ( 0, 0), ( 0, 0), ( 0,+1), ( 0,-2)};
+var OffsetsDownIPiece = new Point[] { (-1,+1), (+1,+1), (-2,+1), (+1, 0), (-2, 0)};
+var OffsetsLeftIPiece = new Point[] { ( 0,+1), ( 0,+1), ( 0,+1), ( 0,-1), ( 0,+2)};
+var OffsetsIPiece = new [] {OffsetsUpIPiece, OffsetsRightIPiece, OffsetsDownIPiece, OffsetsLeftIPiece};
+
+var OffsetsUp = new Point[]{( 0, 0), ( 0, 0), ( 0, 0), ( 0, 0), ( 0, 0) };
+var OffsetsRight = new Point[]{( 0, 0), (+1, 0), (+1,-1), ( 0,+2), (+1,+2) };
+var OffsetsDown = new Point[]{( 0, 0), ( 0, 0), ( 0, 0), ( 0, 0), ( 0, 0) };
+var OffsetsLeft = new Point[]{( 0, 0), (-1, 0), (-1,-1), ( 0,+2), (-1,+2) };
+var Offsets = new [] {OffsetsUp, OffsetsRight, OffsetsDown, OffsetsLeft};
+
+static bool[] IgnoreNone() => new [] {false, false, false, false, false };
+var IgnoreForTPieceUp = new [] {false, false, false, true, false };
+var IgnoreForTPieceDown = new [] {false, false, true, false, false };
+var IgnoreForTPieceHorizontal = new [] {false, false, false, false, false };
+var IgnoreForTPieceTables = new [] {IgnoreForTPieceUp, IgnoreForTPieceHorizontal, IgnoreForTPieceDown, IgnoreForTPieceHorizontal};
+var IgnoreForTPieceDummyTables = new [] {IgnoreForTPieceHorizontal, IgnoreForTPieceHorizontal, IgnoreForTPieceHorizontal, IgnoreForTPieceHorizontal};
+
+var pieces = new (string name, Point[][] offsets, bool[][] ignoreForTPieceTables)[]{("JLSZ", Offsets, IgnoreForTPieceDummyTables), ("T", Offsets, IgnoreForTPieceTables), ("I", OffsetsIPiece, IgnoreForTPieceDummyTables)};
+
+static string GetCodeForVerticalShifts(int y, string valueName, string filledExpression = "0", string bitBoardType = "TBitBoard")
+=> y switch
+{
+    -2 => $"{bitBoardType}.ShiftDownTwoLines({valueName}, {filledExpression})",
+    -1 => $"{bitBoardType}.ShiftDownOneLine({valueName}, {filledExpression})",
+    0 => valueName,
+    1 => $"{bitBoardType}.ShiftUpOneLine({valueName}, {filledExpression})",
+    2 => $"{bitBoardType}.ShiftUpTwoLines({valueName}, {filledExpression})",
+    _ => throw new NotSupportedException()
+};
+static string GetCodeForHorizontalShifts(int x, string valueName)
+=> x switch
+{
+    >0 => $"{valueName} >> {x}",
+    0 => valueName,
+    <0 => $"{valueName} << {-x}"
+};
+
+static string GenerateNameForOffset(int pos, string positivePrefix, string negativePrefix)
+=> pos switch
+{
+    <0 => $"{negativePrefix}{-pos}",
+    0 => "",
+    >0 => $"{positivePrefix}{pos}"
+};
+static string GenerateSuffixForOffsetPoint(Point pos) => $"{GenerateNameForOffset(pos.x, "r", "l")}{GenerateNameForOffset(pos.y, "u", "d")}";
+static uint GetOrientationAfterRotation(uint value, int offset) => (uint)(value + (uint)offset) & 3;
+
+    void GenerateOffsetTestCode(Point[] offsetsBefore, Point[] offsetsAfter, (string name, uint value) orientation, (string name, uint value) oAfter, bool[][] IgnoreForTPieceTables = null
+        , string BitBoardType = "TBitBoard", string InternalBitBoardType = "TBitBoard")
+    {
+        var maName = $"{oAfter.name.ToLower()}Mobility";
+        var spName = "startPoints";
+        var tempName = "temp";
+        var rtempName = "rtemp";
+#>
+            <#=InternalBitBoardType#> startPoints = reached;
+            <#=InternalBitBoardType#> result = default;
+            <#=InternalBitBoardType#> temp = default;
+            <#=InternalBitBoardType#> rtemp = default;
+            <#=InternalBitBoardType#> sourceMobility = <#=maName#>;
+<#
+        List<(int index, int priority, int dependency, string code)> codes = new();
+        for (int i = 0; i < offsetsBefore.Length; i++)
+        {
+            var offset = offsetsBefore[i] - offsetsAfter[i];
+            if (IgnoreForTPieceTables is not null && IgnoreForTPieceTables[orientation.value][i])
+            {
+                codes.Add((i, 0, 0, $"// Test for offset #{i} {offset} is skipped due to the absence of possible board condition for T piece."));
+                continue;
+            }
+            codes.Add((i, 0, 0, $"// Test for offset #{i} {offset}"));
+            codes.Add((i, 0, 0, $"temp = {GetCodeForVerticalShifts(-offset.y, "sourceMobility", bitBoardType: BitBoardType)};"));
+            if (offset.x != 0)
+            {
+                codes.Add((i, 0, 2, $"temp = {GetCodeForHorizontalShifts(-offset.x, tempName)};"));
+            }
+            codes.Add((i, 3, 2, $"rtemp = temp & startPoints;"));
+            codes.Add((i, 4, 3, $"startPoints &= ~temp;"));
+            var rt2Priority = 0;
+            if (offset.x != 0)
+            {
+                codes.Add((i + 1, 0, 1, $"rtemp = {GetCodeForHorizontalShifts(offset.x, rtempName)};"));
+                rt2Priority = 2;
+            }
+            if (offset.y != 0)
+            {
+                codes.Add((i + 1, rt2Priority, 1, $"rtemp = {GetCodeForVerticalShifts(offset.y, rtempName, bitBoardType: BitBoardType)};"));
+            }
+            codes.Add((i + 1, 2, 2, $"result |= rtemp;"));
+        }
+        var sortedLines = string.Join(Environment.NewLine, codes.OrderBy(c => c.index).ThenBy(c => c.priority).ThenBy(c => c.dependency).Select(c => $"            {c.code}"));
+#>
+<#=sortedLines#>
+<#
+    }
+static string GenerateAndNotStandard(string negated, string right) => $"TBitBoard.AndNot({negated}, {right})";
+static string GenerateAndNotVector512(string negated, string right) => $"PartialBitBoard512.AndNot({negated}, {right})";
+    void GenerateCompositeOffsetTestCode(Point[] offsetsBeforeCc, Point[] offsetsBeforeCw, Point[] offsetsAfter, (string name, uint value) orientationCc
+        , (string name, uint value) orientationCw, (string name, uint value) orientationAfter, bool[] ignoreForTPieceTablesCc = null, bool[] ignoreForTPieceTablesCw = null
+        , string BitBoardType = "TBitBoard", string InternalBitBoardType = "TBitBoard", Func<string, string, string> andNotGen = null, string zeroBoard = "TBitBoard.Zero")
+    {
+        andNotGen ??= GenerateAndNotStandard;
+        var rccName = $"{orientationCc.name.ToLower()}Reached";
+        var rcwName = $"{orientationCw.name.ToLower()}Reached";
+        var mafName = $"{orientationAfter.name.ToLower()}Mobility";
+        var vnamescc = (reached: rccName, start: "scc", rtmp: new []{"rtcc0", "rtcc1"}, src: orientationCc.name);
+        var vnamescw = (reached: rcwName, start: "scw", rtmp: new []{"rtcw0", "rtcw1"}, src: orientationCw.name);
+        var vnames = new RotationTwin<(string reached, string start, IReadOnlyList<string> rtmp, string src)>(vnamescc, vnamescw);
+#>
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        private static <#=BitBoardType#> RotateTo<#=orientationAfter.name#>Internal(<#=BitBoardType#> <#=mafName#>, <#=BitBoardType#> <#=rcwName#>, <#=BitBoardType#> <#=rccName#>)
+        {
+            // Rotation from <#=orientationCc.name#> and <#=orientationCw.name#> to <#=orientationAfter.name#> 
+            <#=InternalBitBoardType#> <#=vnamescc.start#> = <#=rccName#>;
+            <#=InternalBitBoardType#> <#=vnamescw.start#> = <#=rcwName#>;
+            <#=InternalBitBoardType#> mobility = <#=mafName#>;
+            <#=InternalBitBoardType#> result;
+            <#=InternalBitBoardType#> filled = <#=zeroBoard#>;
+<#
+        foreach(var rot in new []{vnamescc, vnamescw})
+        {
+            foreach(var rtmp in rot.rtmp)
+            {
+#>
+            <#=InternalBitBoardType#> <#=rtmp#>;
+<#
+            }
+        }
+#>
+<#
+        ignoreForTPieceTablesCc ??= IgnoreNone();
+        ignoreForTPieceTablesCw ??= IgnoreNone();
+        var indices = Enumerable.Range(0, offsetsBeforeCc.Length);
+        var offsetsAllCc = offsetsBeforeCc.Zip(offsetsAfter, (b, a) => b - a).Zip(ignoreForTPieceTablesCc, (o, i) => (o, i)).Where(a => !a.i).Zip(indices, (o, i) => (rotation: Rotation.CounterClockwise, index: i, offset: o.o));
+        var offsetsAllCw = offsetsBeforeCw.Zip(offsetsAfter, (b, a) => b - a).Zip(ignoreForTPieceTablesCw, (o, i) => (o, i)).Where(a => !a.i).Zip(indices, (o, i) => (rotation: Rotation.Clockwise, index: i, offset: o.o));
+        var concatOffsets = offsetsAllCc.Concat(offsetsAllCw).OrderBy(a => a.index).ThenBy(a => int.Abs(a.offset.y)).ThenBy(a => a.rotation);
+        var groupedOffsets = concatOffsets.GroupBy(a => a.offset, a => (a.index, a.rotation));
+        var yGroupedOffsets = concatOffsets.GroupBy(a => a.offset.y, a => (a.index, a.rotation, a.offset));
+        List<(int index, int dependency, int priority, string code)> codes = new();
+        Dictionary<Point, string> mVariables = new();
+        foreach(var ygroup in yGroupedOffsets)
+        {
+            var key = ygroup.Key;
+            var minIndex = ygroup.MinBy(a => a.index).index;
+            var mname = $"m{GenerateSuffixForOffsetPoint((0, key))}";
+            var isFirst = mVariables.TryAdd(new(0, key), mname);
+            codes.Add((minIndex - 1, 0, 1, $"// Calculate y = {key} offset #{minIndex} as {mname}"));
+            codes.Add((minIndex - 1, 0, 1, $"{(isFirst ? "var" : "")} {mname} = {GetCodeForVerticalShifts(-key, "mobility", "filled", BitBoardType)};"));
+        }
+        Dictionary<int, (string name, Point pos)> xMergeVariables = new();
+        Dictionary<int, (string name, int y)> yMergeVariables = new();
+        string GenerateResultMergeCode(bool isFirst, params string[] values)
+            => values.Length switch
+            {
+                1 when isFirst => $"result = {values.First()};",
+                1 => $"result |= {values.First()};",
+                2 when isFirst => $"result = {values.First()} | {values.Last()};",
+                2 => $"result = {BitBoardType}.OrAll(result, {values.First()}, {values.Last()});",
+                _ => throw new NotSupportedException()
+            };
+        foreach(var group in groupedOffsets)
+        {
+            var key = group.Key;
+            var minIndex = group.MinBy(a => a.index).index;
+            var mname = $"m{GenerateSuffixForOffsetPoint(key)}";
+            var isFirstOffset = mVariables.TryAdd(key, mname);
+            var mnameForY = mVariables[new(0, key.y)];
+            if (isFirstOffset)
+            {
+                codes.Add((minIndex, 0, int.MinValue, $"// Calculate offset #{minIndex} {key} as {mname}"));
+                codes.Add((minIndex, 0, int.MinValue, $"{(isFirstOffset ? "var" : "")} {mname} = {GetCodeForHorizontalShifts(-key.x, mnameForY)};"));
+            }
+            else
+            {
+                codes.Add((minIndex, 0, int.MinValue, $"// Offset #{minIndex} {key}({mname}) is already available."));
+            }
+            int c = -1;
+            foreach(var item in group)
+            {
+                c++;
+                var vnrs = vnames[item.rotation];
+                var rtmpx = vnrs.rtmp[(int)((uint)item.index % (uint)vnrs.rtmp.Count)];
+                codes.Add((item.index, 1, int.MinValue, $"// Test {item.rotation} rotation from {vnrs.src} with offset #{item.index} {key}({mname})"));
+                codes.Add((item.index, 3, c, $"{rtmpx} = {vnrs.start} & {mname};"));
+                codes.Add((item.index, 5, c, $"{vnrs.start} = {andNotGen(mname, vnrs.start)};"));
+                var rt2Priority = 0;
+                if (xMergeVariables.TryAdd(item.index, (rtmpx, key)))
+                {
+                    if (key.x != 0)
+                    {
+                        codes.Add((item.index + 1, 0, c + 1, $"{rtmpx} = {GetCodeForHorizontalShifts(key.x, rtmpx)};"));
+                        rt2Priority = 3;
+                    }
+                }
+                else
+                {
+                    _ = xMergeVariables.Remove(item.index, out var xmv);
+                    (var rtmpxc, var rtmpxcx) = xmv;
+                    if (rtmpxcx == key)
+                    {
+                        if (key.y != 0)
+                        {
+                            codes.Add((item.index, 4, c, $"{rtmpxc} |= {rtmpx};"));
+                            codes.Add((item.index + 1, 5, c, GenerateResultMergeCode(item.index == 0, rtmpxc)));
+                            continue;
+                        }
+                        else
+                        {
+                            if (key.x == 0)
+                            {
+                                codes.Add((item.index, 7, c, GenerateResultMergeCode(item.index == 0, rtmpxc, rtmpx)));
+                                continue;
+                            }
+                            else
+                            {
+                                codes.Add((item.index, 4, c, $"{rtmpxc} |= {rtmpx};"));
+                                codes.Add((item.index + 1, 5, c, GenerateResultMergeCode(item.index == 0, rtmpxc)));
+                                continue;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (key.x != 0)
+                        {
+                            codes.Add((item.index + 1, 0, c, $"{rtmpx} = {GetCodeForHorizontalShifts(key.x, rtmpx)};"));
+                            rt2Priority = 3;
+                        }
+                    }
+                }
+                if (yMergeVariables.TryAdd(item.index, (rtmpx, key.y)))
+                {
+                    if (key.y != 0)
+                    {
+                        codes.Add((item.index + 1, rt2Priority, c, $"{rtmpx} = {GetCodeForVerticalShifts(key.y, rtmpx, "filled", BitBoardType)};"));
+                    }
+                }
+                else
+                {
+                    _ = yMergeVariables.Remove(item.index, out var ymv);
+                    (var rtmpyc, var rtmpycy) = ymv;
+                    if (rtmpycy == key.y)
+                    {
+                        if (key.y != 0)
+                        {
+                            codes.Add((item.index + 1, rt2Priority - 1, c, $"{rtmpyc} |= {rtmpx};"));
+                            codes.Add((item.index + 1, 5, c, GenerateResultMergeCode(c == 0 && item.index == 0, rtmpyc)));
+                        }
+                        else
+                        {
+                            codes.Add((item.index + 1, rt2Priority - 1, c, GenerateResultMergeCode(item.index == 0, rtmpyc, rtmpx)));
+                        }
+                    }
+                    else
+                    {
+                        if (key.y != 0)
+                        {
+                            codes.Add((item.index + 1, rt2Priority, c, $"{rtmpx} = {GetCodeForVerticalShifts(key.y, rtmpx, "filled", BitBoardType)};"));
+                        }
+                        codes.Add((item.index + 2, rt2Priority + 0, c, GenerateResultMergeCode(item.index == 0, rtmpyc, rtmpx)));
+                    }
+                }
+            }
+        }
+        var sortedLines = string.Join(Environment.NewLine, codes.OrderBy(c => c.index).ThenBy(c => c.dependency).ThenBy(c => c.priority).Select(c => $"            {c.code}"));
+#>
+<#=sortedLines#>
+            return result;
+        }
+
+<#
+    }
+#>
+// <auto-generated />
+// Environment.Version: <#=Environment.Version#>
+using System;
+using System.Numerics;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+using Cometris.Boards;
+
+namespace Cometris.Movements
+{
+<#
+foreach (var piece in pieces)
+{
+#>
+    public readonly partial struct Piece<#=piece.name#>RotatabilityLocator<TBitBoard> : IRotatabilityLocator<Piece<#=piece.name#>RotatabilityLocator<TBitBoard>, TBitBoard>
+        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+    {
+        #region RotateFrom
+<#
+    foreach(var o in Orientations)
+    {
+        foreach(var r in Rotations)
+        {
+            var oAfter = Orientations[GetOrientationAfterRotation(o.value, r.offset)];
+            var offsetsBefore = piece.offsets[o.value];
+            var offsetsAfter = piece.offsets[oAfter.value];
+#>
+        
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static TBitBoard Rotate<#=r.name#>From<#=o.name#>(TBitBoard <#=oAfter.name.ToLower()#>Mobility, TBitBoard reached)
+        {
+            // <#=r.name#> rotation from <#=o.name#> to <#=oAfter.name#> 
+<#          GenerateOffsetTestCode(offsetsBefore, offsetsAfter, o, oAfter, piece.ignoreForTPieceTables);#>
+            return result;
+        }
+
+<#      }
+    }
+#>
+        #endregion RotateFrom
+        #region RotateTo
+<#
+    foreach(var o in Orientations)
+    {
+        var occ = Orientations[GetOrientationAfterRotation(o.value, 1)];
+        var ocw = Orientations[GetOrientationAfterRotation(o.value, -1)];
+        var obcc = piece.offsets[occ.value];
+        var obcw = piece.offsets[ocw.value];
+        var offsetsAfter = piece.offsets[o.value];
+        var rccName = $"{occ.name.ToLower()}Reached";
+        var rcwName = $"{ocw.name.ToLower()}Reached";
+        var mafName = $"{o.name.ToLower()}Mobility";
+        var ignoreTableCc = piece.ignoreForTPieceTables[occ.value];
+        var ignoreTableCw = piece.ignoreForTPieceTables[ocw.value];
+#>
+        [SkipLocalsInit]
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static TBitBoard RotateTo<#=o.name#>(TBitBoard <#=mafName#>, TBitBoard <#=rcwName#>, TBitBoard <#=rccName#>)
+        {
+            if (<#=mafName#> is PartialBitBoard512 zmm0 && <#=rcwName#> is PartialBitBoard512 zmm1 && <#=rccName#> is PartialBitBoard512 zmm2)
+            {
+                if (RotateTo<#=o.name#>Internal(zmm0, zmm1, zmm2) is TBitBoard t) return t;
+                return default;
+            }
+            return RotateTo<#=o.name#>Internal(<#=mafName#>, <#=rcwName#>, <#=rccName#>);
+        }
+<#
+        GenerateCompositeOffsetTestCode(obcc, obcw, offsetsAfter, occ, ocw, o, ignoreTableCc, ignoreTableCw);
+        GenerateCompositeOffsetTestCode(obcc, obcw, offsetsAfter, occ, ocw, o, ignoreTableCc, ignoreTableCw, "PartialBitBoard512", "Vector512<ushort>", GenerateAndNotVector512, 
+            "Vector256<ushort>.Zero.ToVector512Unsafe()");
+    }#>
+        #endregion RotateTo
+    }
+<#
+}
+#>
+
+
+}
+
+<#+
+    static string TuplifyIfMultiple(IReadOnlyList<Operand> outputs)
+            => outputs.Count == 1 ? outputs.First().Identifier : $"({string.Join(", ", outputs.Select(a => a.Identifier))})";
+    public enum Rotation : sbyte
+    {
+        Clockwise = 1,
+        CounterClockwise = -1
+    }
+    public readonly struct RotationTwin<T>
+    {
+        public T CounterClockwise { get; }
+        public T Clockwise { get; }
+        public RotationTwin(T cc, T cw) => (CounterClockwise, Clockwise) = (cc, cw);
+        public T this[Rotation rotation]
+        {
+            get => rotation switch
+            {
+                Rotation.CounterClockwise => CounterClockwise,
+                _ => Clockwise
+            };
+        }
+    }
+    public readonly struct Point : IEquatable<Point>
+    {
+        public readonly int x;
+        public readonly int y;
+        public Point(int x, int y) => (this.x, this.y) = (x, y);
+        public static implicit operator Point((int x, int y) tuple) => new(tuple.x, tuple.y);
+
+        public static Point operator +(Point left, Point right) => new(left.x + right.x, left.y + right.y);
+        public static Point operator -(Point left, Point right) => new(left.x - right.x, left.y - right.y);
+        public static Point operator -(Point value) => new(-value.x, -value.y);
+        public static bool operator ==(Point left, Point right) => left.x == right.x & left.y == right.y;
+        public static bool operator !=(Point left, Point right) => left.x != right.x | left.y != right.y;
+        
+        public override string? ToString() => $"({x}, {y})";
+        public override int GetHashCode() => HashCode.Combine(x, y);
+
+        public bool Equals(Point other) => (other.x, other.y) == (this.x, this.y);
+    }
+    public readonly struct Operand
+    {
+        public ulong Version { get; }
+        public string Identifier { get; }
+        public Operand(ulong version, string identifier) => (Version, Identifier) = (version, identifier);
+
+        public static Operand operator ++(Operand value) => new(value.Version + 1, value.Identifier);
+    }
+    public interface IOperation
+    {
+        ulong Latency { get; }
+        IReadOnlyList<Operand> Outputs { get; }
+        IReadOnlyList<Operand> Inputs { get; }
+        IReadOnlyList<object> Constants { get; }
+        string GenerateOutput();
+    }
+    public sealed class IdentityOperation : IOperation
+    {
+        public Operand Output { get; }
+        public ulong Latency => 0;
+        public IReadOnlyList<Operand> Outputs => new[] {Output};
+        public IReadOnlyList<Operand> Inputs => new[] {Output};
+        public IReadOnlyList<object> Constants => Array.Empty<object>();
+        public string GenerateOutput() => "";
+    }
+    public abstract class BinaryOperation : IOperation
+    {
+        public Operand Output { get; }
+        public Operand Left { get; }
+        public Operand Right { get; }
+        public abstract ulong Latency { get; }
+        public IReadOnlyList<Operand> Outputs => new[] {Output};
+        public IReadOnlyList<Operand> Inputs => new[] {Left, Right};
+        public abstract IReadOnlyList<object> Constants { get; }
+        public abstract string GenerateOutput();
+    }
+    public sealed class MethodOperation : IOperation
+    {
+        public ulong Latency { get; init; } = 4;
+        public string Name { get; init; }
+        public IReadOnlyList<Operand> Outputs { get; init; }
+        public IReadOnlyList<Operand> Inputs { get; init; }
+        public IReadOnlyList<object> Constants => Array.Empty<object>();
+        public string GenerateOutput() => $"{TuplifyIfMultiple(Outputs)} = {Name}({string.Join(", ", Inputs.Select(a => a.Identifier))})";
+        
+        public MethodOperation(string name, Operand output, params Operand[] inputs)
+        {
+            Name = name;
+            Outputs = new[] {output};
+            Inputs = inputs;
+        }
+    }
+    public sealed class SimpleFormatOperation : IOperation
+    {
+        public Operand Output { get; init; }
+        public ulong Latency { get; init; } = 4;
+        public string Format { get; init; }
+        public IReadOnlyList<Operand> Outputs => new[] {Output};
+        public IReadOnlyList<Operand> Inputs { get; init; }
+        public IReadOnlyList<object> Constants => Array.Empty<object>();
+        public string GenerateOutput() => $"{Output.Identifier} = {string.Format(Format, Inputs.ToArray())}";
+        
+        public SimpleFormatOperation(string format, Operand output, params Operand[] inputs)
+        {
+            Format = format;
+            Output = output;
+            Inputs = inputs;
+        }
+    }
+    public enum BitwiseBinaryOperations
+    {
+        None = 0,
+        Right = 0b1010,
+        Left = 0b1100,
+
+        Nor = ~(Right | Left),
+        Xor = Right ^ Left,
+        Nand = ~(Right & Left),
+        AndNot = Right & ~Left,
+        And = Right & Left,
+        Or = Right | Left,
+        Always = 0b1111
+    }
+    public sealed class BitwiseBinaryOperation : IOperation
+    {
+        public Operand Output { get; }
+        public Operand Left { get; }
+        public Operand Right { get; }
+        public BitwiseBinaryOperations Operation { get; }
+        public ulong Latency { get; }
+        public IReadOnlyList<Operand> Outputs => new[] {Output};
+        public IReadOnlyList<Operand> Inputs => new[] {Left, Right};
+        public IReadOnlyList<object> Constants { get; }
+        public string GenerateOutput() => "";
+    }
+
+#>

@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFrameworks>net8.0</TargetFrameworks>
+        <LangVersion>preview</LangVersion>
+        <Nullable>enable</Nullable>
+        <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+        <PackageLicenseExpression>AGPL-3.0-only</PackageLicenseExpression>
+        <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+    <Import Project="../Cometris.targets" />
+    <ItemGroup>
+        <PackageReference Include="Shamisen.Utils" Version="0.1.0-alpha.0.7.0" />
+    </ItemGroup>
+    
+    <!--<Target Name="DependUponMessageBeforeBuild" BeforeTargets="TextTemplateTransform">
+        <ItemGroup>
+            <ItemThatDependsUponSomething Include="@(Compile-&gt;HasMetadata('DependentUpon'))" />
+            <DependsUponMessageItem Include="@(ItemThatDependsUponSomething)" Text="%(Identity) depends upon %(DependentUpon)" />
+            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." />
+            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." />
+        </ItemGroup>
+        <Message Text="%(DependsUponMessageWithExistence.Text)" />
+    </Target>
+    <Target Name="DependUponMessageAfterBuild" AfterTargets="Build">
+        <ItemGroup>
+            <ItemThatDependsUponSomething Include="@(Compile-&gt;HasMetadata('DependentUpon'))" />
+            <DependsUponMessageItem Include="@(ItemThatDependsUponSomething)" Text="%(Identity) depends upon %(DependentUpon)" />
+            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." />
+            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." />
+        </ItemGroup>
+        <Message Text="%(DependsUponMessageWithExistence.Text)" />
+    </Target>-->
+
+</Project>

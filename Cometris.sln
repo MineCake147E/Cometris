@@ -1,0 +1,53 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32721.290
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cometris", "Cometris\Cometris.csproj", "{B28EF620-3AD2-4633-999F-79DE7948D30D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cometris.Tests", "Cometris.Tests\Cometris.Tests.csproj", "{5B4383C2-AE9C-4120-A08E-6E06DECD681D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BCC2B5DA-21C3-4B9D-8BEF-AA54C0EA9ECC}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		Cometris.targets = Cometris.targets
+		exclusion.dic = exclusion.dic
+		FumenExtract.js = FumenExtract.js
+		LICENSE.txt = LICENSE.txt
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cometris.Benchmarks", "Cometris.Benchmarks\Cometris.Benchmarks.csproj", "{3690D78B-2926-42EB-BBCC-A32B655DB11A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cometris.Benchmarks.Running", "Cometris.Benchmarks.Running\Cometris.Benchmarks.Running.csproj", "{556DCC9D-2848-452B-A1C0-C54C9BA2C024}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B28EF620-3AD2-4633-999F-79DE7948D30D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B28EF620-3AD2-4633-999F-79DE7948D30D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B28EF620-3AD2-4633-999F-79DE7948D30D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B28EF620-3AD2-4633-999F-79DE7948D30D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B4383C2-AE9C-4120-A08E-6E06DECD681D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B4383C2-AE9C-4120-A08E-6E06DECD681D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B4383C2-AE9C-4120-A08E-6E06DECD681D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B4383C2-AE9C-4120-A08E-6E06DECD681D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3690D78B-2926-42EB-BBCC-A32B655DB11A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3690D78B-2926-42EB-BBCC-A32B655DB11A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3690D78B-2926-42EB-BBCC-A32B655DB11A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3690D78B-2926-42EB-BBCC-A32B655DB11A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1D04E04F-3A1C-419F-AEC6-E343EAC94606}
+	EndGlobalSection
+EndGlobal
