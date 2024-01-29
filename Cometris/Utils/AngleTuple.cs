@@ -1,5 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 
+using MikoMino;
+
 namespace Cometris.Utils
 {
     [StructLayout(LayoutKind.Sequential)]

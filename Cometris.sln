@@ -13,13 +13,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Cometris.targets = Cometris.targets
 		exclusion.dic = exclusion.dic
 		FumenExtract.js = FumenExtract.js
-		LICENSE.txt = LICENSE.txt
+		LICENSE.md = LICENSE.md
 		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cometris.Benchmarks", "Cometris.Benchmarks\Cometris.Benchmarks.csproj", "{3690D78B-2926-42EB-BBCC-A32B655DB11A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cometris.Benchmarks.Running", "Cometris.Benchmarks.Running\Cometris.Benchmarks.Running.csproj", "{556DCC9D-2848-452B-A1C0-C54C9BA2C024}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MikoMino", "MikoMino\MikoMino\MikoMino.csproj", "{8F9FAE6B-0744-443B-831D-6AFC117157AA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -43,6 +45,10 @@ Global
 		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{556DCC9D-2848-452B-A1C0-C54C9BA2C024}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F9FAE6B-0744-443B-831D-6AFC117157AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F9FAE6B-0744-443B-831D-6AFC117157AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F9FAE6B-0744-443B-831D-6AFC117157AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F9FAE6B-0744-443B-831D-6AFC117157AA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

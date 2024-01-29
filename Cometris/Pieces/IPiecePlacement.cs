@@ -1,4 +1,6 @@
-﻿namespace Cometris.Pieces
+﻿using MikoMino;
+
+namespace Cometris.Pieces
 {
     public interface IPiecePlacement<TSelf>
         where TSelf : unmanaged, IPiecePlacement<TSelf>

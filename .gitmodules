@@ -1,0 +1,3 @@
+[submodule "MikoMino"]
+	path = MikoMino
+	url = https://github.com/MineCake147E/MikoMino.git

@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
+using MikoMino;
+
 namespace Cometris
 {
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
@@ -37,6 +39,8 @@ namespace Cometris
         }
 
         public static CompressedPositionsTuple Empty => new(0);
+
+        public int Count => TotalLines;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public CompressedPositionsTuple(Point item0, Point item1, Point item2)

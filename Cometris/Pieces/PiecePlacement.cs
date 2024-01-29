@@ -1,6 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using MikoMino;
+
 namespace Cometris.Pieces
 {
     [StructLayout(LayoutKind.Explicit, Size = sizeof(ulong) + 2 * sizeof(ushort))]

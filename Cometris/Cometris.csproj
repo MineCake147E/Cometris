@@ -17,6 +17,9 @@
     <ItemGroup>
         <PackageReference Include="Shamisen.Utils" Version="0.1.0-alpha.0.7.0" />
     </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\MikoMino\MikoMino\MikoMino.csproj" />
+    </ItemGroup>
     
     <!--<Target Name="DependUponMessageBeforeBuild" BeforeTargets="TextTemplateTransform">
         <ItemGroup>
