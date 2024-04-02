@@ -10,6 +10,7 @@ using System.Runtime.Intrinsics.X86;
 using Cometris.Boards;
 using Cometris.Utils;
 using Cometris.Movements;
+using MikoMino;
 
 namespace Cometris.Tests.Movements
 {

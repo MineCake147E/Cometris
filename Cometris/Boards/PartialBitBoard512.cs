@@ -94,15 +94,12 @@ namespace Cometris.Boards
             [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get
             {
-                var bb = y >> 31;
-                var value = FullBitBoard.EmptyRow;
-                y |= bb;
-                value = (ushort)(value | bb);
-                if ((uint)y < Height)   //Also jumps if index is less than 0
-                {
-                    value = storage.GetElement(y);
-                }
-                return value;
+                var control = Vector512.CreateScalarUnsafe((ushort)y);
+                var v = Avx512BW.PermuteVar32x16(storage, control).AsUInt32().GetElement(0);
+                var bb = (uint)(y >> 31);
+                var value = FullBitBoard.EmptyRow | bb;
+                if ((uint)y < (uint)Vector512<ushort>.Count) value = v;   //Also jumps if index is less than 0
+                return (ushort)value;
             }
         }
 
@@ -157,8 +154,8 @@ namespace Cometris.Boards
         {
             var b = board;
             var zmm0 = filled;
-            nuint len = (nuint)b.Length;
-            nuint len2 = len & (nuint.MaxValue >> 1 >> BitOperations.LeadingZeroCount(len));
+            var len = (nuint)b.Length;
+            var len2 = len & (nuint.MaxValue >> 1 >> BitOperations.LeadingZeroCount(len));
             var pos = GetIndexVector512() - Vector512.Create((ushort)len2);
             ref var rsi = ref MemoryMarshal.GetReference(b);
             ref var r9 = ref Unsafe.As<ushort, byte>(ref Unsafe.Add(ref rsi, len2));
@@ -1503,7 +1500,11 @@ namespace Cometris.Boards
         private string GetDebuggerDisplay() => ((PartialBitBoard256X2)this).GetDebuggerDisplay();
 
         public override string ToString() => GetDebuggerDisplay();
-        public static bool IsSetAt(Vector512<ushort> mask, byte index) => mask.GetElement(index) >> 15 > 0;
+        public static bool IsSetAt(Vector512<ushort> mask, byte index)
+        {
+            var m = mask.ExtractMostSignificantBits();
+            return ((m >> index) & 1) > 0;
+        }
         #endregion
     }
 

@@ -1,5 +1,7 @@
 ﻿using Cometris.Boards;
 
+using MikoMino;
+
 namespace Cometris.Pieces.Placing
 {
     public readonly struct PieceSPlacer<TBitBoard> : IPiecePlacer<TBitBoard>
@@ -31,5 +33,6 @@ namespace Cometris.Pieces.Placing
             var lline = (ushort)(0x8000u >> x);
             return TBitBoard.CreateThreeAdjacentLines(y, lline, mline, uline);
         }
+        public static TBitBoard Place(Angle angle, int x, int y) => PiecePlacerImplementationUtils.Place<TBitBoard, PieceIPlacer<TBitBoard>>(angle, x, y);
     }
 }

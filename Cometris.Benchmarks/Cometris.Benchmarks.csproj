@@ -13,5 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Cometris\Cometris.csproj" />
+    <ProjectReference Include="..\MikoMino\MikoMino\MikoMino.csproj" />
   </ItemGroup>
 </Project>

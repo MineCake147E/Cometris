@@ -8,5 +8,7 @@ namespace Cometris.Pieces
         Piece Piece { get; }
         Point Position { get; }
         Angle Angle { get; }
+
+        static abstract ulong CalculateHashCode(TSelf value);
     }
 }

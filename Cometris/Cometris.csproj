@@ -21,23 +21,31 @@
       <ProjectReference Include="..\MikoMino\MikoMino\MikoMino.csproj" />
     </ItemGroup>
     
-    <!--<Target Name="DependUponMessageBeforeBuild" BeforeTargets="TextTemplateTransform">
+    <Target Name="DependUponMessageBeforeBuild" BeforeTargets="TextTemplateTransform">
         <ItemGroup>
-            <ItemThatDependsUponSomething Include="@(Compile-&gt;HasMetadata('DependentUpon'))" />
-            <DependsUponMessageItem Include="@(ItemThatDependsUponSomething)" Text="%(Identity) depends upon %(DependentUpon)" />
-            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." />
-            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." />
+            <ItemThatDependsUponSomethingBeforeBuild Include="@(Compile->HasMetadata('DependentUpon'))" UpToDateCheckInput="false"/>
+            <DependsUponMessageBeforeBuildItem Include="@(ItemThatDependsUponSomethingBeforeBuild)" Text="%(Identity) depends upon %(DependentUpon)" UpToDateCheckInput="false"/>
+            <DependsUponMessageWithExistenceBeforeBuild Include="@(DependsUponMessageBeforeBuildItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false"/>
+            <DependsUponMessageWithExistenceBeforeBuild Include="@(DependsUponMessageBeforeBuildItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false"/>
         </ItemGroup>
-        <Message Text="%(DependsUponMessageWithExistence.Text)" />
+        <Message Text="%(DependsUponMessageWithExistenceBeforeBuild.Text)" />
     </Target>
     <Target Name="DependUponMessageAfterBuild" AfterTargets="Build">
         <ItemGroup>
-            <ItemThatDependsUponSomething Include="@(Compile-&gt;HasMetadata('DependentUpon'))" />
-            <DependsUponMessageItem Include="@(ItemThatDependsUponSomething)" Text="%(Identity) depends upon %(DependentUpon)" />
-            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." />
-            <DependsUponMessageWithExistence Include="@(DependsUponMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." />
+            <ItemThatDependsUponSomethingAfterBuild Include="@(Compile->HasMetadata('DependentUpon'))" UpToDateCheckInput="false"/>
+            <DependsUponMessageAfterBuildItem Include="@(ItemThatDependsUponSomethingAfterBuild)" Text="%(Identity) depends upon %(DependentUpon)" UpToDateCheckInput="false"/>
+            <DependsUponMessageWithExistenceAfterBuild Include="@(DependsUponMessageAfterBuildItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false"/>
+            <DependsUponMessageWithExistenceAfterBuild Include="@(DependsUponMessageAfterBuildItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false"/>
         </ItemGroup>
-        <Message Text="%(DependsUponMessageWithExistence.Text)" />
-    </Target>-->
-
+        <Message Text="%(DependsUponMessageWithExistenceAfterBuild.Text)" />
+    </Target>
+    <Target Name="UpToDateCheckBuiltMessageBeforeBuild" AfterTargets="Build">
+        <ItemGroup>
+            <ItemThatChecksUpToDate Include="@(UpToDateCheckBuilt->HasMetadata('Original'))" UpToDateCheckInput="false"/>
+            <UpToDateMessageItem Include="@(ItemThatChecksUpToDate)" Text="%(Identity) is generated from %(Original)" UpToDateCheckInput="false"/>
+            <UpToDateMessageWithExistence Include="@(UpToDateMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false"/>
+            <UpToDateMessageWithExistence Include="@(UpToDateMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false"/>
+        </ItemGroup>
+        <Message Text="%(UpToDateMessageWithExistence.Text)" />
+    </Target>
 </Project>

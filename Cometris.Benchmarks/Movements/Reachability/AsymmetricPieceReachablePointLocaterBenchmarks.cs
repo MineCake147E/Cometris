@@ -132,7 +132,7 @@ namespace Cometris.Benchmarks.Movements.Reachability
         {
             (var upperMobility, var rightMobility, var lowerMobility, var leftMobility) = mob;
             (var upperReached, var rightReached, var lowerReached, var leftReached) = (TBitBoard.Zero, TBitBoard.Zero, TBitBoard.Zero, TBitBoard.Zero);
-            for (int i = 0; i < OperationsPerInvoke; i++)
+            for (var i = 0; i < OperationsPerInvoke; i++)
             {
                 var (upper, right, lower, left) = TraceAll<TRotatabilityLocator>((upperMobility, rightMobility, lowerMobility, leftMobility), spawn);
                 upperReached |= upper;

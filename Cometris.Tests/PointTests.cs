@@ -1,4 +1,6 @@
-﻿namespace Cometris.Tests
+﻿using MikoMino;
+
+namespace Cometris.Tests
 {
     public class PointTests
     {

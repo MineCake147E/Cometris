@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Cometris.Benchmarks\Cometris.Benchmarks.csproj" />
     <ProjectReference Include="..\Cometris\Cometris.csproj" />
+    <ProjectReference Include="..\MikoMino\MikoMino\MikoMino.csproj" />
   </ItemGroup>
 
 </Project>

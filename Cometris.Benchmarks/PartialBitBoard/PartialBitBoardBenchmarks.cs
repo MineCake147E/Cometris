@@ -11,7 +11,7 @@ namespace Cometris.Benchmarks.PartialBitBoard
     [SimpleJob(runtimeMoniker: RuntimeMoniker.HostProcess)]
     [DisassemblyDiagnoser(maxDepth: int.MaxValue)]
     [CategoriesColumn]
-    [AllCategoriesFilter(nameof(FillDropReachable4Sets))]
+    [AllCategoriesFilter(nameof(IndexerVariable))]
     [GenericTypeArguments(typeof(PartialBitBoard256X2), typeof(PartialBitBoard256X2))]
     [GenericTypeArguments(typeof(PartialBitBoard512), typeof(Vector512<ushort>))]
     public class PartialBitBoardBenchmarks<TBitBoard, TLineMask>
@@ -175,7 +175,7 @@ namespace Cometris.Benchmarks.PartialBitBoard
             var board2 = board0;
             var board3 = board0;
             ushort line0 = 0, line1 = 1, line2 = 2, line3 = 3;
-            int index = 0;
+            var index = 0;
             ulong rng = 0;
             for (var i = 0; i < OperationsPerInvoke / 8; i++)
             {
@@ -215,6 +215,72 @@ namespace Cometris.Benchmarks.PartialBitBoard
                 board0 ^= TBitBoard.FromBoard(bslice, TBitBoard.EmptyLine);
             }
             return board0;
+        }
+
+        [BenchmarkCategory(nameof(IsSetAtVariable))]
+        [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
+        public bool IsSetAtVariable()
+        {
+            var mask0 = TBitBoard.AllBitsSetMask;
+            var mask1 = TBitBoard.AllBitsSetMask;
+            var mask2 = TBitBoard.AllBitsSetMask;
+            var mask3 = TBitBoard.AllBitsSetMask;
+            var board = TBitBoard.FromBoard([ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0], 0);
+            bool line0 = false, line1 = true, line2 = false, line3 = true;
+            var index = 0;
+            ulong rng = 0;
+            for (var i = 0; i < OperationsPerInvoke / 8; i++)
+            {
+                rng = rng * 9 + 127;
+                line0 ^= TBitBoard.IsSetAt(mask0, (byte)((index) & 31));
+                mask0 = TBitBoard.MaskUnaryNegation(mask0);
+                line1 ^= TBitBoard.IsSetAt(mask1, (byte)((index + 1) & 31));
+                mask1 = TBitBoard.MaskUnaryNegation(mask1);
+                line2 ^= TBitBoard.IsSetAt(mask2, (byte)((index + 2) & 31));
+                mask2 = TBitBoard.MaskUnaryNegation(mask2);
+                line3 ^= TBitBoard.IsSetAt(mask3, (byte)((index + 3) & 31));
+                mask3 = TBitBoard.MaskUnaryNegation(mask3);
+                line0 ^= TBitBoard.IsSetAt(mask0, (byte)((index + 4) & 31));
+                line1 ^= TBitBoard.IsSetAt(mask1, (byte)((index + 5) & 31));
+                line2 ^= TBitBoard.IsSetAt(mask2, (byte)((index + 6) & 31));
+                line3 ^= TBitBoard.IsSetAt(mask3, (byte)((index + 7) & 31));
+                index = (int)((rng >> 43) & 31);
+                board = TBitBoard.ShiftDownOneLine(board, board);
+                mask3 = TBitBoard.MaskXor(mask3, mask2);
+                mask2 = TBitBoard.MaskXor(mask2, mask1);
+                mask1 = TBitBoard.MaskXor(mask1, mask0);
+                mask0 = TBitBoard.CreateMaskFromBoard(board);
+            }
+            line0 ^= line1;
+            line2 ^= line3;
+            return line0 ^ line2;
+        }
+
+        [BenchmarkCategory(nameof(IndexerVariable))]
+        [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
+        public ushort IndexerVariable()
+        {
+            var board = TBitBoard.FromBoard([ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0, ushort.MaxValue, 0], 0);
+            uint line0 = 0, line1 = 1, line2 = 2, line3 = 3;
+            var index = 0;
+            ulong rng = 0;
+            for (var i = 0; i < OperationsPerInvoke / 8; i++)
+            {
+                rng = rng * 9 + 127;
+                line0 ^= board[index];
+                line1 ^= board[index + 1];
+                line2 ^= board[index + 2];
+                line3 ^= board[index + 3];
+                line0 ^= board[index + 4];
+                line1 ^= board[index + 5];
+                line2 ^= board[index + 6];
+                line3 ^= board[index + 7];
+                index = (int)((rng >> 43) & 63);
+                board = TBitBoard.ShiftDownOneLine(board, board);
+            }
+            line0 ^= line1;
+            line2 ^= line3;
+            return (ushort)(line0 ^ line2);
         }
         #endregion
     }

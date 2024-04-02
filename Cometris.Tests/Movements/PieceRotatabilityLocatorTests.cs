@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Cometris.Boards;
 using Cometris.Utils;
 
+using MikoMino;
+
 namespace Cometris.Tests.Movements
 {
     [TestFixture(typeof(PartialBitBoard256X2))]
