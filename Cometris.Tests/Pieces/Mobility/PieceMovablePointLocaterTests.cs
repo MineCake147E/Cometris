@@ -5,7 +5,7 @@ namespace Cometris.Tests.Pieces.Mobility
 {
     [TestFixture(typeof(PartialBitBoard256X2))]
     [TestFixture(typeof(PartialBitBoard512))]
-    public class PieceMovablePointLocaterTests<TBitBoard> where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+    public class PieceMovablePointLocaterTests<TBitBoard> where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         [SetUp]
         public void Setup()

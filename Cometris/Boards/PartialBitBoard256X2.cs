@@ -20,7 +20,7 @@ namespace Cometris.Boards
     /// </summary>
     [StructLayout(LayoutKind.Explicit, Size = sizeof(ushort) * Height)]
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
-    public readonly struct PartialBitBoard256X2 : IMaskableBitBoard<PartialBitBoard256X2, ushort, PartialBitBoard256X2, uint>
+    public readonly struct PartialBitBoard256X2 : ICompactMaskableBitBoard<PartialBitBoard256X2, ushort, PartialBitBoard256X2, uint>
 
     {
         /// <summary>
@@ -86,6 +86,7 @@ namespace Cometris.Boards
             [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
             get => Avx512BW.VL.IsSupported ? 16 : (Avx2.IsSupported ? 8 : 0);
         }
+        public static byte HeightFieldSize => 6;
 #pragma warning restore S3358 // Ternary operators should not be nested
 
         #region Constructors
@@ -449,7 +450,7 @@ namespace Cometris.Boards
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static PartialBitBoard256X2 ShiftDownSixteenLines(PartialBitBoard256X2 board, [ConstantExpected] ushort upperFeedValue)
+        public static PartialBitBoard256X2 ShiftDown16Lines(PartialBitBoard256X2 board, [ConstantExpected] ushort upperFeedValue)
         {
             var ymm2 = Vector256.Create(upperFeedValue).AsUInt16();
             var ymm1 = board.Upper;
@@ -458,6 +459,38 @@ namespace Cometris.Boards
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static PartialBitBoard256X2 ShiftDownVariableLines(PartialBitBoard256X2 board, int count, ushort upperFeedValue)
+        {
+            var ymm0 = board.Lower;
+            var ymm1 = board.Upper;
+            var ymm2 = Vector256.Create(upperFeedValue);
+            var ymm3 = Vector256.Create(count).AsByte();
+            var ymm5 = (ymm3.AsUInt32() >> 1).AsUInt16();
+            var ymm4 = Avx2.CompareGreaterThan(ymm3.AsInt32(), Vector256.Create(15)).AsUInt16();
+            ymm5 &= Vector256.Create(7u).AsUInt16();
+            ymm3 &= Vector256.Create((byte)1);
+            ymm0 = Avx2.BlendVariable(ymm0, ymm1, ymm4);
+            ymm5 += Vector256<uint>.Indices.AsUInt16();
+            ymm1 = Avx2.BlendVariable(ymm1, ymm2, ymm4);
+            ymm3 = Avx2.Shuffle(ymm3.AsByte(), Vector256.Create((byte)0, 0, 0, 0, 4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12, 0, 0, 0, 0, 4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12));
+            ymm4 = Avx2.CompareGreaterThan(ymm5.AsInt32(), Vector256.Create(7)).AsUInt16();
+            ymm0 = Avx2.PermuteVar8x32(ymm0.AsUInt32(), ymm5.AsUInt32()).AsUInt16();
+            ymm1 = Avx2.PermuteVar8x32(ymm1.AsUInt32(), ymm5.AsUInt32()).AsUInt16();
+            ymm3 += ymm3;
+            ymm3 += Vector256<byte>.Indices & Vector256.Create((byte)15);
+            ymm0 = Avx2.BlendVariable(ymm0, ymm1, ymm4);
+            ymm1 = Avx2.BlendVariable(ymm1, ymm2, ymm4);
+            ymm4 = Avx2.CompareGreaterThan(ymm3.AsSByte(), Vector256.Create((byte)15).AsSByte()).AsUInt16();
+            ymm0 = Avx2.Shuffle(ymm0.AsByte(), ymm3).AsUInt16();
+            ymm1 = Avx2.Shuffle(ymm1.AsByte(), ymm3).AsUInt16();
+            ymm5 = Avx2.Permute2x128(ymm0, ymm1, 0x21);
+            var ymm6 = Avx2.Permute2x128(ymm1, ymm2, 0x21);
+            ymm0 = Avx2.BlendVariable(ymm0, ymm5, ymm4);
+            ymm1 = Avx2.BlendVariable(ymm1, ymm6, ymm4);
+            return new(ymm0, ymm1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        internal static PartialBitBoard256X2 ShiftDownVariableLinesOld(PartialBitBoard256X2 board, int count, ushort upperFeedValue)
         {
             var cnt = count << -5;
             ArgumentOutOfRangeException.ThrowIfNegative(count);
@@ -621,7 +654,7 @@ namespace Cometris.Boards
             return default;
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static PartialBitBoard256X2 ShiftUpSixteenLines(PartialBitBoard256X2 board, [ConstantExpected] ushort lowerFeedValue)
+        public static PartialBitBoard256X2 ShiftUp16Lines(PartialBitBoard256X2 board, [ConstantExpected] ushort lowerFeedValue)
         {
             var ymm0 = Vector256.Create(lowerFeedValue).AsUInt16();
             var ymm1 = board.lower;
@@ -819,7 +852,7 @@ namespace Cometris.Boards
             b0 = ShiftDownEightLines(b1, 0);
             r0 = Or1And02(r0, r1, b1);
             b0 &= b1;
-            r1 = ShiftDownSixteenLines(r0, 0);
+            r1 = ShiftDown16Lines(r0, 0);
             r1 = Or1And02(r1, r0, b0);
             return r1;
         }
@@ -832,36 +865,23 @@ namespace Cometris.Boards
             var b0 = board;
             var r0 = reached;
             var r2 = r0 >> 1;
-            var r3 = r0 << 1;
             var b2 = b0 >> 1;
-            var b3 = b0 << 1;
+            var r1 = b0 + r0;
             r2 = (r2 & b0) | r0;
-            r3 = (r3 & b0) | r0;
-            r2 |= r3;
+            r1 = ~r1;
+            r1 |= r0;
             b2 &= b0;
-            b3 &= b0;
+            r1 &= b0;
             r0 = r2 >> 2;
-            var r1 = r2 << 2;
             b0 = b2 >> 2;
-            var b1 = b3 << 2;
             r0 = (r0 & b2) | r2;
-            r1 = (r1 & b3) | r2;
-            r0 |= r1;
             b0 &= b2;
-            b1 &= b3;
             r2 = r0 >> 4;
-            r3 = r0 << 4;
             b2 = b0 >> 4;
-            b3 = b1 << 4;
             r2 = (r2 & b0) | r0;
-            r3 = (r3 & b1) | r0;
-            r2 |= r3;
             b2 &= b0;
-            b3 &= b1;
             r0 = r2 >> 8;
-            r1 = r2 << 8;
             r0 = (r0 & b2) | r2;
-            r1 = (r1 & b3) | r2;
             r0 |= r1;
             return r0;
         }
@@ -869,6 +889,9 @@ namespace Cometris.Boards
         #endregion
         #endregion
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static PartialBitBoard256X2 operator +(PartialBitBoard256X2 left, PartialBitBoard256X2 right)
+            => new(left.Lower + right.Lower, left.Upper + right.Upper);
         #region OnesComplement
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static PartialBitBoard256X2 operator ~(PartialBitBoard256X2 board)
@@ -1030,7 +1053,8 @@ namespace Cometris.Boards
             var sb = new StringBuilder("\n");
             var fHeight = new FixedArray32<ushort>();
             Span<ushort> a = fHeight;
-            Unsafe.WriteUnaligned(ref Unsafe.As<ushort, byte>(ref MemoryMarshal.GetReference(a)), this);
+            lower.StoreUnsafe(ref a[0]);
+            upper.StoreUnsafe(ref a[Vector256<ushort>.Count]);
             var upperStreak = true;
             var upperStreakCount = 0;
             var previousItem = a[^1];
@@ -1374,6 +1398,17 @@ namespace Cometris.Boards
         }
 
         public static bool IsSetAt(PartialBitBoard256X2 mask, byte index) => mask[index] >> 15 > 0;
+        public static ulong CalculateHash(PartialBitBoard256X2 board, ulong key = default) => throw new NotImplementedException();
+        public static int GetBlockHeight(PartialBitBoard256X2 board)
+        {
+            var ymm15 = Vector256.Create(FullBitBoard.InvertedEmptyRow);
+            var ymm0 = board.lower & ymm15;
+            var ymm1 = board.upper & ymm15;
+            ymm0 = Avx2.CompareEqual(ymm0, default);
+            ymm1 = Avx2.CompareEqual(ymm1, default);
+            var m = ymm0.ExtractMostSignificantBits() | (ymm1.ExtractMostSignificantBits() << Vector256<ushort>.Count);
+            return BitOperations.LeadingZeroCount(0u) - BitOperations.LeadingZeroCount(~m);
+        }
         #endregion
     }
 }

@@ -12,7 +12,7 @@ namespace Cometris.Tests.Integration
         }
         [TestCaseSource(nameof(FindPCRouteTestCaseSource))]
         public void FindsPCRoute<TBitBoard>(TBitBoard start, params Piece[] pieces)
-            where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+            where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         {
 
         }

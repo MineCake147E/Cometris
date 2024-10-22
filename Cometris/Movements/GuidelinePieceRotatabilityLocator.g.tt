@@ -303,7 +303,7 @@ foreach (var piece in pieces)
 {
 #>
     public readonly partial struct Piece<#=piece.name#>RotatabilityLocator<TBitBoard> : IRotatabilityLocator<Piece<#=piece.name#>RotatabilityLocator<TBitBoard>, TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         #region RotateFrom
 <#

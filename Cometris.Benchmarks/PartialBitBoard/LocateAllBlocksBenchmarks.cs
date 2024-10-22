@@ -18,7 +18,7 @@ namespace Cometris.Benchmarks.PartialBitBoard
     [GenericTypeArguments(typeof(PartialBitBoard256X2), typeof(PartialBitBoard256X2))]
     [GenericTypeArguments(typeof(PartialBitBoard512), typeof(Vector512<ushort>))]
     public class LocateAllBlocksBenchmarks<TBitBoard, TLineMask>
-        where TBitBoard : unmanaged, IMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
+        where TBitBoard : unmanaged, ICompactMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
         where TLineMask : struct, IEquatable<TLineMask>
     {
         public const int OperationsPerInvoke = 16384;

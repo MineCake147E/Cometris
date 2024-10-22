@@ -10,7 +10,7 @@ namespace Cometris.Evaluation
 {
     public readonly struct TSpinLocator
     {
-        public static (TBitBoard mini, (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) full) LocateTwistablePoints<TBitBoard>(TBitBoard bitBoard, in (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) reached, in (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) mobility) where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        public static (TBitBoard mini, (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) full) LocateTwistablePoints<TBitBoard>(TBitBoard bitBoard, in (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) reached, in (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) mobility) where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         {
             (var mini, (var upper, var right, var lower, var left)) = LocatePossibleTwistPoints(bitBoard);
             var (upperReached, rightReached, lowerReached, leftReached) = reached;
@@ -19,7 +19,7 @@ namespace Cometris.Evaluation
             return (mini, (upper, right, lower, left));
         }
 
-        private static (TBitBoard mini, (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) full) LocatePossibleTwistPoints<TBitBoard>(TBitBoard bitBoard) where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        private static (TBitBoard mini, (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) full) LocatePossibleTwistPoints<TBitBoard>(TBitBoard bitBoard) where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         {
             var s = ~bitBoard;
             var upperBoard = TBitBoard.ShiftDownOneLine(s, TBitBoard.InvertedEmpty);

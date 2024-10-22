@@ -5,6 +5,8 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
+using MikoMino.Boards.LineSets;
+
 namespace Cometris.Pieces.Hashing
 {
     public static class PlacementHash
@@ -19,15 +21,19 @@ namespace Cometris.Pieces.Hashing
             {
                 case < 2:
                     return 0;
+                case 65536:
+                    return (ushort)value;
                 default:
                     break;
             }
             value = value * 16369140280850176879 + 12763420880237146411;
-            if ((value & (value - 1)) == 0)
+            if ((range & (range - 1)) == 0)
             {
-                var shift = BitOperations.LeadingZeroCount(value - 1);
-                value >>= shift;
-                return value;
+                var shift = BitOperations.LeadingZeroCount(range - 1);
+                var mask = ulong.MaxValue >> shift;
+                var k = (value & ~mask) >> (BitOperations.LeadingZeroCount(ulong.MinValue) - shift);
+                value ^= k & ~(ulong)ushort.MaxValue;
+                return value & mask;
             }
             return value % range;
         }

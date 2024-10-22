@@ -3,10 +3,11 @@
   "isRoot": true,
   "tools": {
     "dotnet-t4": {
-      "version": "3.0.0-preview-0049-g4f33c8d8b1",
+      "version": "3.0.0-preview-0052-g5d0f76c785",
       "commands": [
         "t4"
-      ]
+      ],
+      "rollForward": false
     }
   }
 }

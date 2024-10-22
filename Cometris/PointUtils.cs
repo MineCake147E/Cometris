@@ -21,14 +21,17 @@ namespace Cometris
         }
         public static Point Expand(uint point)
         {
-            if (Bmi2.X64.IsSupported)
+            unchecked
             {
-                return new((long)Bmi2.X64.ParallelBitDeposit(point, PointCompressionRange));
+                if (Bmi2.X64.IsSupported)
+                {
+                    return new((long)Bmi2.X64.ParallelBitDeposit(point, PointCompressionRange));
+                }
+                var posv = (ulong)(point & 0x03FFu);
+                posv |= posv << 28;
+                posv &= PointCompressionRange;
+                return new((long)posv);
             }
-            var posv = (ulong)(point & 0x03FFu);
-            posv |= posv << 28;
-            posv &= PointCompressionRange;
-            return new((long)posv);
         }
     }
 }

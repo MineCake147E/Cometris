@@ -17,7 +17,7 @@ var countsWithName = new (int count, string name)[]
 (7, "Seven"),
 (8, "Eight"),
 (9, "Nine"),
-(16, "Sixteen"),
+(16, "16"),
 };
 var counts = Enumerable.Range(10, 22).Select(y => (count: y, name: $"{y}")).Where(x => !IsPow2(x.count)).Concat(countsWithName).OrderBy(a => a.count);
 static bool IsPow2(int value) => (value & (value - 1)) == 0;

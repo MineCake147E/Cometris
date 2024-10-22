@@ -10,7 +10,7 @@ using Cometris.Boards;
 namespace Cometris.Evaluation
 {
     public interface IEvaluator<TBitBoard, TVectorLineMask, TBinaryLineMask>
-        where TBitBoard : unmanaged, IMaskableBitBoard<TBitBoard, ushort, TVectorLineMask, TBinaryLineMask>
+        where TBitBoard : unmanaged, ICompactMaskableBitBoard<TBitBoard, ushort, TVectorLineMask, TBinaryLineMask>
         where TVectorLineMask : struct, IEquatable<TVectorLineMask>
         where TBinaryLineMask : unmanaged, IBinaryInteger<TBinaryLineMask>
     {

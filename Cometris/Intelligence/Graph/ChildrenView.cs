@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cometris.Intelligence.Graph.Simple.Piece
+namespace Cometris.Intelligence.Graph
 {
-    internal class PreviewTree
+    public readonly struct ChildrenView
     {
     }
 }

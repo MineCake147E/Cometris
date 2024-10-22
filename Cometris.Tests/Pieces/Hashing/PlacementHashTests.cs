@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.Intrinsics;
 using System.Security.Cryptography;
 using System.Text;
@@ -46,11 +47,25 @@ namespace Cometris.Tests.Pieces.Hashing
             AssertCollision(originalSetEnumerable, CompressedPiecePlacement.CalculateHashCode);
         }
 
+        [Test]
+        public void NoHashCollidesUInt64Fallback()
+        {
+            var originalSetEnumerable = GetWholePiecePlacementSet();
+            AssertCollision(originalSetEnumerable, a => CompressedPiecePlacement.CalculateKeyedHashCodeFallback(a, default));
+        }
+
         [TestCaseSource(nameof(BitsSource))]
         public void NoHashCollidesPowerOfTwoRange(int bits)
         {
             var originalSetEnumerable = GetWholePiecePlacementSet();
             AssertCollision(originalSetEnumerable, a => PlacementHash.CalculateRangeLimitedHash(a.CalculateHashCode(), 1ul << bits));
+        }
+
+        [TestCaseSource(nameof(BitsSource))]
+        public void NoHashCollidesPowerOfTwoRangeFallback(int bits)
+        {
+            var originalSetEnumerable = GetWholePiecePlacementSet();
+            AssertCollision(originalSetEnumerable, a => PlacementHash.CalculateRangeLimitedHash(CompressedPiecePlacement.CalculateKeyedHashCodeFallback(a, default), 1ul << bits));
         }
 
         [Test]
@@ -61,7 +76,7 @@ namespace Cometris.Tests.Pieces.Hashing
             var pap = pac.SelectMany(a => pos.Select(b => a.WithPosition(b).Value)).Order().ToArray();
             var comb = pap.SkipLast(1)
                 .SelectMany((p0, i) => pap.Skip(i + 1).Select(p1 => (p0: new CompressedPiecePlacement(p0), p1: new CompressedPiecePlacement(p1))));
-            AssertDistinct(comb, c => c.p0.CalculateHashCode() + c.p1.CalculateHashCode());
+            AssertDistinct(comb, c => c.p0.CalculateHashCode() ^ c.p1.CalculateHashCode());
         }
 
         [Test]
@@ -71,9 +86,9 @@ namespace Cometris.Tests.Pieces.Hashing
             var pos = GetAllPositions();
             var pap = pac.SelectMany(a => pos.Select(b => a.WithPosition(b).Value)).Order().Select(a => new CompressedPiecePlacement(a)).ToArray();
             var pas = new ArraySegment<CompressedPiecePlacement>(pap);
-            var comb = pap.SkipLast(1)
+            var comb = pas.Slice(0, pas.Count - 1)
                 .SelectMany((p0, i) => pas.Slice(i + 1).Select(p1 => (p0, p1)));
-            AssertDistinct2(comb, c => c.p0.CalculateHashCode() + c.p1.CalculateHashCode());
+            AssertDistinct2(comb, c => c.p0.CalculateHashCode() ^ c.p1.CalculateHashCode());
         }
 
         [TestCase(256)]
@@ -166,7 +181,26 @@ namespace Cometris.Tests.Pieces.Hashing
         private static void AssertCollision<T>(IEnumerable<T> hashedPair, Func<T, ulong> hash)
         {
             var groups = hashedPair.GroupBy(hash);
-            Assert.That(groups.Any(a => a.Skip(1).Any()), Is.False, () => $"Number of Collision: {groups.Count(a => a.Skip(1).Any())}");
+            var colliding = groups.Any(a => a.Skip(1).Any());
+            if (colliding)
+            {
+                var collisions = groups.Where(a => a.Skip(1).Any()).OrderByDescending(a => a.Count()).Take(64).Select(a => $"0x{ConvertToSeparatedHexadecimal(a.Key, 4)}: {string.Join(", ", a.Select(b => b?.ToString()).OfType<string>())}");
+                Console.WriteLine($"Colliding Elements: {Environment.NewLine}{string.Join(Environment.NewLine, collisions)}");
+            }
+            Assert.That(colliding, Is.False, () => $"Number of Collision Groups: {groups.Count(a => a.Skip(1).Any())}");
+        }
+
+        private static StringBuilder ConvertToSeparatedHexadecimal<T>(T value, int words) where T : IBinaryInteger<T>
+        {
+            var sb = new StringBuilder(words * 4 + words - 1);
+            for (int i = words - 1; i >= 1; i--)
+            {
+                var s = ushort.CreateTruncating(value >> (i * 16));
+                _ = sb.Append($"{s:x4}_");
+            }
+            var sl = ushort.CreateTruncating(value);
+            _ = sb.Append($"{sl:x4}");
+            return sb;
         }
 
         private static void AssertDistinctCollision<T0, T1>(IEnumerable<T0> hashedPair, Func<T0, ulong> hash, Func<T0, T1> keySelector)

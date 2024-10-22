@@ -8,7 +8,10 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
+using Cometris.Pieces;
 using Cometris.Utils;
+
+using MikoMino.Game;
 
 using Shamisen;
 
@@ -22,7 +25,7 @@ namespace Cometris.Boards
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = sizeof(ushort) * Height)]
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
-    public readonly partial struct PartialBitBoard512 : IMaskableBitBoard<PartialBitBoard512, ushort, Vector512<ushort>, uint>
+    public readonly partial struct PartialBitBoard512 : ICompactMaskableBitBoard<PartialBitBoard512, ushort, Vector512<ushort>, uint>
     {
         /// <summary>
         /// 32 = <see cref="Vector512{T}.Count"/> for <see cref="ushort"/>.
@@ -31,8 +34,9 @@ namespace Cometris.Boards
 
         public const int EffectiveWidth = PartialBitBoard256X2.EffectiveWidth;
 
-        //[FieldOffset(0)]
+#pragma warning disable IDE0032 // Use auto property
         private readonly Vector512<ushort> storage;
+#pragma warning restore IDE0032 // Use auto property
 
         public Vector512<ushort> Value => storage;
 
@@ -71,8 +75,11 @@ namespace Cometris.Boards
         public static bool IsVerticalShiftSupported => Avx512BW.IsSupported;
         #endregion
         #region Board Constants
-        static ushort IBitBoard<PartialBitBoard512, ushort>.EmptyLine => FullBitBoard.EmptyRow;
+        public static ushort EmptyLine => FullBitBoard.EmptyRow;
+        public static ushort InvertedEmptyLine => FullBitBoard.InvertedEmptyRow;
         public static PartialBitBoard512 Empty => new(FullBitBoard.EmptyRow);
+
+        public static PartialBitBoard512 InvertedEmpty => new(FullBitBoard.InvertedEmptyRow);
 
         public static PartialBitBoard512 Zero => new(Vector128<ushort>.Zero.ToVector256Unsafe().ToVector512Unsafe());
 
@@ -87,6 +94,8 @@ namespace Cometris.Boards
         public static PartialBitBoard512 AllBitsSet => new(Vector512<ulong>.AllBitsSet.AsUInt16());
 
         public static int MaxEnregisteredLocals => Avx512BW.IsSupported ? 32 : 0;
+
+        static int IBitBoard<PartialBitBoard512, ushort>.EffectiveWidth => EffectiveWidth;
         #endregion
 
         public ushort this[int y]
@@ -489,7 +498,7 @@ namespace Cometris.Boards
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static PartialBitBoard512 ShiftDownSixteenLines(PartialBitBoard512 board, ushort upperFeedValue)
+        public static PartialBitBoard512 ShiftDown16Lines(PartialBitBoard512 board, ushort upperFeedValue)
         {
             var ymm1 = Vector256.Create(upperFeedValue);
             var ymm0 = board.storage.GetUpper();
@@ -501,8 +510,16 @@ namespace Cometris.Boards
         {
             var zmm0 = board.storage;
             var zmm1 = Vector512.Create(upperFeedValue);
-            var zmm2 = GetIndexVector512() + Vector512.Create((ushort)count);
-            return new(Avx512BW.PermuteVar32x16x2(zmm0, zmm2, zmm1));
+            if (Avx512Vbmi.IsSupported)
+            {
+                var zmm2 = Vector512<byte>.Indices + Vector512.Create((byte)(count * 2));
+                return new(Avx512Vbmi.PermuteVar64x8x2(zmm0.AsByte(), zmm2, zmm1.AsByte()).AsUInt16());
+            }
+            else
+            {
+                var zmm2 = Vector512<ushort>.Indices + Vector512.Create((ushort)count);
+                return new(Avx512BW.PermuteVar32x16x2(zmm0, zmm2, zmm1));
+            }
         }
         #endregion
         #region Shift Up
@@ -590,7 +607,7 @@ namespace Cometris.Boards
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static PartialBitBoard512 ShiftUpSixteenLines(PartialBitBoard512 board, ushort lowerFeedValue)
+        public static PartialBitBoard512 ShiftUp16Lines(PartialBitBoard512 board, ushort lowerFeedValue)
         {
             var ymm1 = Vector256.Create(lowerFeedValue);
             var ymm0 = board.storage.GetLower();
@@ -600,19 +617,35 @@ namespace Cometris.Boards
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static PartialBitBoard512 ShiftUpVariableLines(PartialBitBoard512 board, int count, ushort lowerFeedValue)
         {
-            var zmm2 = GetIndexVector512() - Vector512.Create((ushort)count);
             var zmm0 = board.storage;
             var zmm1 = Vector512.Create(lowerFeedValue);
-            return new(Avx512BW.PermuteVar32x16x2(zmm0, zmm2, zmm1));
+            if (Avx512Vbmi.IsSupported)
+            {
+                var zmm2 = Vector512<byte>.Indices - Vector512.Create((byte)(count * 2));
+                return new(Avx512Vbmi.PermuteVar64x8x2(zmm0.AsByte(), zmm2, zmm1.AsByte()).AsUInt16());
+            }
+            else
+            {
+                var zmm2 = Vector512<ushort>.Indices - Vector512.Create((ushort)count);
+                return new(Avx512BW.PermuteVar32x16x2(zmm0, zmm2, zmm1));
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static PartialBitBoard512 ShiftUpVariableLines(PartialBitBoard512 board, int count, PartialBitBoard512 lowerFeedBoard)
         {
-            var zmm2 = GetIndexVector512() - Vector512.Create((ushort)count);
             var zmm0 = board.storage;
             var zmm1 = lowerFeedBoard.storage;
-            return new(Avx512BW.PermuteVar32x16x2(zmm0, zmm2, zmm1));
+            if (Avx512Vbmi.IsSupported)
+            {
+                var zmm2 = Vector512<byte>.Indices - Vector512.Create((byte)(count * 2));
+                return new(Avx512Vbmi.PermuteVar64x8x2(zmm0.AsByte(), zmm2, zmm1.AsByte()).AsUInt16());
+            }
+            else
+            {
+                var zmm2 = Vector512<ushort>.Indices - Vector512.Create((ushort)count);
+                return new(Avx512BW.PermuteVar32x16x2(zmm0, zmm2, zmm1));
+            }
         }
 
         #endregion
@@ -850,7 +883,86 @@ namespace Cometris.Boards
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static PartialBitBoard512 FillHorizontalReachable(PartialBitBoard512 board, PartialBitBoard512 reached)
+        public static PartialBitBoard512 FillHorizontalReachable(PartialBitBoard512 board, PartialBitBoard512 reached) => FillHorizontalReachableInternal(board, reached);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        internal static PartialBitBoard512 FillHorizontalReachableGfni(PartialBitBoard512 board, PartialBitBoard512 reached)
+        {
+            var zmm31 = Vector512.Create(
+                            (byte)1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
+                            1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
+                            1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
+                            1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+            var zmm30 = Vector512.Create((byte)0x0f).AsUInt16();
+            var zmm29 = Vector512.Create(
+                0, 128, 64, 192, 32, 160, 96, 224, 16, 144, 80, 208, 48, 176, 112, 240,
+                0, 128, 64, 192, 32, 160, 96, 224, 16, 144, 80, 208, 48, 176, 112, 240,
+                0, 128, 64, 192, 32, 160, 96, 224, 16, 144, 80, 208, 48, 176, 112, 240,
+                0, 128, 64, 192, 32, 160, 96, 224, 16, 144, 80, 208, 48, 176, 112, 240);
+            var zmm28 = Vector512.Create(
+                (byte)0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15,
+                0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15,
+                0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15,
+                0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15);
+            var zmm0 = board.storage;
+            var zmm1 = reached.storage;
+            // TODO: AVX512-GFNI Bit Reversal
+            var zmm2 = Avx512BW.Shuffle(zmm0.AsByte(), zmm31).AsUInt16();
+            var zmm3 = Avx512BW.Shuffle(zmm1.AsByte(), zmm31).AsUInt16();
+            var zmm4 = zmm2 >> 4;
+            var zmm5 = zmm3 >> 4;
+            zmm2 &= zmm30;
+            zmm3 &= zmm30;
+            zmm4 &= zmm30;
+            zmm5 &= zmm30;
+            zmm2 = Avx512BW.Shuffle(zmm29, zmm2.AsByte()).AsUInt16();
+            zmm3 = Avx512BW.Shuffle(zmm29, zmm3.AsByte()).AsUInt16();
+            zmm4 = Avx512BW.Shuffle(zmm28, zmm4.AsByte()).AsUInt16();
+            zmm5 = Avx512BW.Shuffle(zmm28, zmm5.AsByte()).AsUInt16();
+            zmm2 |= zmm4;   // flipped zmm0
+            zmm3 |= zmm5;   // flipped zmm1
+            zmm5 = zmm2 + zmm3;
+            zmm2 = Avx512F.TernaryLogic(zmm2, zmm3, zmm5, 0xD0);
+            zmm2 = Avx512BW.Shuffle(zmm2.AsByte(), zmm31).AsUInt16();
+            zmm4 = zmm0 + zmm1;
+            zmm0 = Avx512F.TernaryLogic(zmm0, zmm1, zmm4, 0xD0);
+            zmm4 = zmm2 >> 4;
+            zmm2 &= zmm30;
+            zmm4 &= zmm30;
+            zmm2 = Avx512BW.Shuffle(zmm29, zmm2.AsByte()).AsUInt16();
+            zmm4 = Avx512BW.Shuffle(zmm28, zmm4.AsByte()).AsUInt16();
+            zmm2 |= zmm4;
+            zmm0 |= zmm2;
+            return new(zmm0);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        internal static PartialBitBoard512 FillHorizontalReachableInternal(PartialBitBoard512 board, PartialBitBoard512 reached)
+        {
+            var zmm0 = board.storage;
+            var zmm1 = reached.storage;
+            var zmm5 = Vector512.ShiftRightLogical(zmm1, 1);
+            var zmm4 = Vector512.ShiftRightLogical(zmm0, 1);
+            zmm5 = Avx512F.TernaryLogic(zmm5, zmm1, zmm0, 0xEC);
+            var zmm2 = zmm0 + zmm1;
+            zmm4 &= zmm0;
+            zmm2 = Avx512F.TernaryLogic(zmm0, zmm1, zmm2, 0xD0);
+            zmm1 = Vector512.ShiftRightLogical(zmm5, 2);
+            zmm0 = Vector512.ShiftRightLogical(zmm4, 2);
+            zmm1 = Avx512F.TernaryLogic(zmm1, zmm5, zmm4, 0xEC);
+            zmm0 &= zmm4;
+            zmm5 = Vector512.ShiftRightLogical(zmm1, 4);
+            zmm4 = Vector512.ShiftRightLogical(zmm0, 4);
+            zmm5 = Avx512F.TernaryLogic(zmm5, zmm1, zmm0, 0xEC);
+            zmm4 &= zmm0;
+            zmm1 = Vector512.ShiftRightLogical(zmm5, 8);
+            zmm1 = Avx512F.TernaryLogic(zmm1, zmm5, zmm4, 0xEC);
+            zmm1 |= zmm2;
+            return new(zmm1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        internal static PartialBitBoard512 FillHorizontalReachableInternalOld(PartialBitBoard512 board, PartialBitBoard512 reached)
         {
             var zmm0 = board.storage;
             var zmm1 = reached.storage;
@@ -891,6 +1003,158 @@ namespace Cometris.Boards
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) FillHorizontalReachable4Sets((PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) board, (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) reached)
+        {
+            (var zmm0, var zmm8, var zmm16, var zmm24) = (board.upper.storage, board.right.storage, board.lower.storage, board.left.storage);
+            (var zmm1, var zmm9, var zmm17, var zmm25) = (reached.upper.storage, reached.right.storage, reached.lower.storage, reached.left.storage);
+            var zmm5 = Vector512.ShiftRightLogical(zmm1, 1);
+            var zmm13 = Vector512.ShiftRightLogical(zmm9, 1);
+            var zmm21 = Vector512.ShiftRightLogical(zmm17, 1);
+            var zmm29 = Vector512.ShiftRightLogical(zmm25, 1);
+            var zmm4 = Vector512.ShiftRightLogical(zmm0, 1);
+            var zmm12 = Vector512.ShiftRightLogical(zmm8, 1);
+            var zmm20 = Vector512.ShiftRightLogical(zmm16, 1);
+            var zmm28 = Vector512.ShiftRightLogical(zmm24, 1);
+            var zmm2 = zmm0 + zmm1;
+            var zmm10 = zmm8 + zmm9;
+            var zmm18 = zmm16 + zmm17;
+            var zmm26 = zmm24 + zmm25;
+            zmm5 = Avx512F.TernaryLogic(zmm5, zmm1, zmm0, 0xEC);
+            zmm13 = Avx512F.TernaryLogic(zmm13, zmm9, zmm8, 0xEC);
+            zmm21 = Avx512F.TernaryLogic(zmm21, zmm17, zmm16, 0xEC);
+            zmm29 = Avx512F.TernaryLogic(zmm29, zmm25, zmm24, 0xEC);
+            zmm4 &= zmm0;
+            zmm12 &= zmm8;
+            zmm20 &= zmm16;
+            zmm28 &= zmm24;
+            zmm2 = Avx512F.TernaryLogic(zmm2, zmm1, zmm0, 0x8A);
+            zmm10 = Avx512F.TernaryLogic(zmm10, zmm9, zmm8, 0x8A);
+            zmm18 = Avx512F.TernaryLogic(zmm18, zmm17, zmm16, 0x8A);
+            zmm26 = Avx512F.TernaryLogic(zmm26, zmm25, zmm24, 0x8A);
+            zmm1 = Vector512.ShiftRightLogical(zmm5, 2);
+            zmm9 = Vector512.ShiftRightLogical(zmm13, 2);
+            zmm17 = Vector512.ShiftRightLogical(zmm21, 2);
+            zmm25 = Vector512.ShiftRightLogical(zmm29, 2);
+            zmm0 = Vector512.ShiftRightLogical(zmm4, 2);
+            zmm8 = Vector512.ShiftRightLogical(zmm12, 2);
+            zmm16 = Vector512.ShiftRightLogical(zmm20, 2);
+            zmm24 = Vector512.ShiftRightLogical(zmm28, 2);
+            zmm1 = Avx512F.TernaryLogic(zmm1, zmm5, zmm4, 0xEC);
+            zmm9 = Avx512F.TernaryLogic(zmm9, zmm13, zmm12, 0xEC);
+            zmm17 = Avx512F.TernaryLogic(zmm17, zmm21, zmm20, 0xEC);
+            zmm25 = Avx512F.TernaryLogic(zmm25, zmm29, zmm28, 0xEC);
+            zmm0 &= zmm4;
+            zmm8 &= zmm12;
+            zmm16 &= zmm20;
+            zmm24 &= zmm28;
+            zmm5 = Vector512.ShiftRightLogical(zmm1, 4);
+            zmm13 = Vector512.ShiftRightLogical(zmm9, 4);
+            zmm21 = Vector512.ShiftRightLogical(zmm17, 4);
+            zmm29 = Vector512.ShiftRightLogical(zmm25, 4);
+            zmm4 = Vector512.ShiftRightLogical(zmm0, 4);
+            zmm12 = Vector512.ShiftRightLogical(zmm8, 4);
+            zmm20 = Vector512.ShiftRightLogical(zmm16, 4);
+            zmm28 = Vector512.ShiftRightLogical(zmm24, 4);
+            zmm5 = Avx512F.TernaryLogic(zmm5, zmm1, zmm0, 0xEC);
+            zmm13 = Avx512F.TernaryLogic(zmm13, zmm9, zmm8, 0xEC);
+            zmm21 = Avx512F.TernaryLogic(zmm21, zmm17, zmm16, 0xEC);
+            zmm29 = Avx512F.TernaryLogic(zmm29, zmm25, zmm24, 0xEC);
+            zmm4 &= zmm0;
+            zmm12 &= zmm8;
+            zmm20 &= zmm16;
+            zmm28 &= zmm24;
+            zmm1 = Vector512.ShiftRightLogical(zmm5, 8);
+            zmm9 = Vector512.ShiftRightLogical(zmm13, 8);
+            zmm17 = Vector512.ShiftRightLogical(zmm21, 8);
+            zmm25 = Vector512.ShiftRightLogical(zmm29, 8);
+            zmm1 = Avx512F.TernaryLogic(zmm1, zmm5, zmm4, 0xEC);
+            zmm9 = Avx512F.TernaryLogic(zmm9, zmm13, zmm12, 0xEC);
+            zmm17 = Avx512F.TernaryLogic(zmm17, zmm21, zmm20, 0xEC);
+            zmm25 = Avx512F.TernaryLogic(zmm25, zmm29, zmm28, 0xEC);
+            zmm1 |= zmm2;
+            zmm9 |= zmm10;
+            zmm17 |= zmm18;
+            zmm25 |= zmm26;
+            return (new(zmm1), new(zmm9), new(zmm17), new(zmm25));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) FillHorizontalReachable4Sets(PartialBitBoard512 upperBoard, PartialBitBoard512 rightBoard, PartialBitBoard512 lowerBoard, PartialBitBoard512 leftBoard, PartialBitBoard512 upperReached, PartialBitBoard512 rightReached, PartialBitBoard512 lowerReached, PartialBitBoard512 leftReached)
+        {
+            (var zmm0, var zmm8, var zmm16, var zmm24) = (upperBoard.storage, rightBoard.storage, lowerBoard.storage, leftBoard.storage);
+            (var zmm1, var zmm9, var zmm17, var zmm25) = (upperReached.storage, rightReached.storage, lowerReached.storage, leftReached.storage);
+            var zmm5 = Vector512.ShiftRightLogical(zmm1, 1);
+            var zmm13 = Vector512.ShiftRightLogical(zmm9, 1);
+            var zmm21 = Vector512.ShiftRightLogical(zmm17, 1);
+            var zmm29 = Vector512.ShiftRightLogical(zmm25, 1);
+            var zmm4 = Vector512.ShiftRightLogical(zmm0, 1);
+            var zmm12 = Vector512.ShiftRightLogical(zmm8, 1);
+            var zmm20 = Vector512.ShiftRightLogical(zmm16, 1);
+            var zmm28 = Vector512.ShiftRightLogical(zmm24, 1);
+            var zmm2 = zmm0 + zmm1;
+            var zmm10 = zmm8 + zmm9;
+            var zmm18 = zmm16 + zmm17;
+            var zmm26 = zmm24 + zmm25;
+            zmm5 = Avx512F.TernaryLogic(zmm5, zmm1, zmm0, 0xEC);
+            zmm13 = Avx512F.TernaryLogic(zmm13, zmm9, zmm8, 0xEC);
+            zmm21 = Avx512F.TernaryLogic(zmm21, zmm17, zmm16, 0xEC);
+            zmm29 = Avx512F.TernaryLogic(zmm29, zmm25, zmm24, 0xEC);
+            zmm4 &= zmm0;
+            zmm12 &= zmm8;
+            zmm20 &= zmm16;
+            zmm28 &= zmm24;
+            zmm2 = Avx512F.TernaryLogic(zmm2, zmm1, zmm0, 0x8A);
+            zmm10 = Avx512F.TernaryLogic(zmm10, zmm9, zmm8, 0x8A);
+            zmm18 = Avx512F.TernaryLogic(zmm18, zmm17, zmm16, 0x8A);
+            zmm26 = Avx512F.TernaryLogic(zmm26, zmm25, zmm24, 0x8A);
+            zmm1 = Vector512.ShiftRightLogical(zmm5, 2);
+            zmm9 = Vector512.ShiftRightLogical(zmm13, 2);
+            zmm17 = Vector512.ShiftRightLogical(zmm21, 2);
+            zmm25 = Vector512.ShiftRightLogical(zmm29, 2);
+            zmm0 = Vector512.ShiftRightLogical(zmm4, 2);
+            zmm8 = Vector512.ShiftRightLogical(zmm12, 2);
+            zmm16 = Vector512.ShiftRightLogical(zmm20, 2);
+            zmm24 = Vector512.ShiftRightLogical(zmm28, 2);
+            zmm1 = Avx512F.TernaryLogic(zmm1, zmm5, zmm4, 0xEC);
+            zmm9 = Avx512F.TernaryLogic(zmm9, zmm13, zmm12, 0xEC);
+            zmm17 = Avx512F.TernaryLogic(zmm17, zmm21, zmm20, 0xEC);
+            zmm25 = Avx512F.TernaryLogic(zmm25, zmm29, zmm28, 0xEC);
+            zmm0 &= zmm4;
+            zmm8 &= zmm12;
+            zmm16 &= zmm20;
+            zmm24 &= zmm28;
+            zmm5 = Vector512.ShiftRightLogical(zmm1, 4);
+            zmm13 = Vector512.ShiftRightLogical(zmm9, 4);
+            zmm21 = Vector512.ShiftRightLogical(zmm17, 4);
+            zmm29 = Vector512.ShiftRightLogical(zmm25, 4);
+            zmm4 = Vector512.ShiftRightLogical(zmm0, 4);
+            zmm12 = Vector512.ShiftRightLogical(zmm8, 4);
+            zmm20 = Vector512.ShiftRightLogical(zmm16, 4);
+            zmm28 = Vector512.ShiftRightLogical(zmm24, 4);
+            zmm5 = Avx512F.TernaryLogic(zmm5, zmm1, zmm0, 0xEC);
+            zmm13 = Avx512F.TernaryLogic(zmm13, zmm9, zmm8, 0xEC);
+            zmm21 = Avx512F.TernaryLogic(zmm21, zmm17, zmm16, 0xEC);
+            zmm29 = Avx512F.TernaryLogic(zmm29, zmm25, zmm24, 0xEC);
+            zmm4 &= zmm0;
+            zmm12 &= zmm8;
+            zmm20 &= zmm16;
+            zmm28 &= zmm24;
+            zmm1 = Vector512.ShiftRightLogical(zmm5, 8);
+            zmm9 = Vector512.ShiftRightLogical(zmm13, 8);
+            zmm17 = Vector512.ShiftRightLogical(zmm21, 8);
+            zmm25 = Vector512.ShiftRightLogical(zmm29, 8);
+            zmm1 = Avx512F.TernaryLogic(zmm1, zmm5, zmm4, 0xEC);
+            zmm9 = Avx512F.TernaryLogic(zmm9, zmm13, zmm12, 0xEC);
+            zmm17 = Avx512F.TernaryLogic(zmm17, zmm21, zmm20, 0xEC);
+            zmm25 = Avx512F.TernaryLogic(zmm25, zmm29, zmm28, 0xEC);
+            zmm1 |= zmm2;
+            zmm9 |= zmm10;
+            zmm17 |= zmm18;
+            zmm25 |= zmm26;
+            return (new(zmm1), new(zmm9), new(zmm17), new(zmm25));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        internal static (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) FillHorizontalReachable4SetsOld((PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) board, (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) reached)
         {
             (var zmm0, var zmm8, var zmm16, var zmm24) = (board.upper.storage, board.right.storage, board.lower.storage, board.left.storage);
             (var zmm1, var zmm9, var zmm17, var zmm25) = (reached.upper.storage, reached.right.storage, reached.lower.storage, reached.left.storage);
@@ -1026,7 +1290,7 @@ namespace Cometris.Boards
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) FillHorizontalReachable4Sets(PartialBitBoard512 upperBoard, PartialBitBoard512 rightBoard, PartialBitBoard512 lowerBoard, PartialBitBoard512 leftBoard, PartialBitBoard512 upperReached, PartialBitBoard512 rightReached, PartialBitBoard512 lowerReached, PartialBitBoard512 leftReached)
+        internal static (PartialBitBoard512 upper, PartialBitBoard512 right, PartialBitBoard512 lower, PartialBitBoard512 left) FillHorizontalReachable4SetsOld(PartialBitBoard512 upperBoard, PartialBitBoard512 rightBoard, PartialBitBoard512 lowerBoard, PartialBitBoard512 leftBoard, PartialBitBoard512 upperReached, PartialBitBoard512 rightReached, PartialBitBoard512 lowerReached, PartialBitBoard512 leftReached)
         {
             (var zmm0, var zmm8, var zmm16, var zmm24) = (upperBoard.storage, rightBoard.storage, lowerBoard.storage, leftBoard.storage);
             (var zmm1, var zmm9, var zmm17, var zmm25) = (upperReached.storage, rightReached.storage, lowerReached.storage, leftReached.storage);
@@ -1202,7 +1466,7 @@ namespace Cometris.Boards
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static PartialBitBoard512 LineSelect(Vector512<ushort> mask, PartialBitBoard512 left, PartialBitBoard512 right)
-            => new(Avx512BW.BlendVariable(right.storage, left.storage, mask));
+            => new(Avx512BW.BlendVariable(left.storage, right.storage, mask));
 
         #endregion
 
@@ -1421,32 +1685,32 @@ namespace Cometris.Boards
             var compressedCount = (count + 2) / 3;
             var buffer = writer.GetSpan(compressedCount);
             uint compressing = 0;
-            var modshift = 0;
-            ref var bhead = ref Unsafe.As<PartialBitBoard512, ushort>(ref board);
+            var modShift = 0;
+            ref var bHead = ref Unsafe.As<PartialBitBoard512, ushort>(ref board);
             nint j = 0;
             var i = 0;
-            uint ycoord = 0;
-            for (; j < Height; j++, ycoord += 1 << 4)
+            uint yCoord = 0;
+            for (; j < Height; j++, yCoord += 1 << 4)
             {
-                var line = (uint)Unsafe.Add(ref bhead, j) << 16;
+                var line = (uint)Unsafe.Add(ref bHead, j) << 16;
                 while (true)
                 {
                     var pos = (uint)BitOperations.LeadingZeroCount(line);
                     if (pos >= 16) break;
                     line = MathI.ZeroHighBitsFromHigh((int)pos + 1, line);
-                    var coord = ycoord | pos;
-                    compressing |= coord << modshift;
-                    modshift += 10;
-                    if (modshift < 30) continue;
-                    modshift = 0;
+                    var coord = yCoord | pos;
+                    compressing |= coord << modShift;
+                    modShift += 10;
+                    if (modShift < 30) continue;
+                    modShift = 0;
                     buffer[i] = new(compressing | 0xc000_0000u);
                     compressing = 0;
                     i++;
                 }
             }
-            if ((uint)(modshift - 1) < 29)  // x - 1 brings 0 to uint.MaxValue
+            if ((uint)(modShift - 1) < 29)  // x - 1 brings 0 to uint.MaxValue
             {
-                var mcount = (uint)modshift / 10u;
+                var mcount = (uint)modShift / 10u;
                 buffer[i] = new(compressing | (mcount << 30));
                 i++;
             }
@@ -1455,12 +1719,16 @@ namespace Cometris.Boards
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static int TotalBlocks(PartialBitBoard512 board)
+        public static int TotalBlocks(PartialBitBoard512 board) => TotalBlocks(board.storage);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static int TotalBlocks(Vector512<ushort> board)
         {
-            var zmm0 = board.storage.AsByte();
+            var zmm0 = board.AsByte();
             var zmm1 = Vector512.Create(~0x0f0f0f0fu).AsByte();
             var zmm2 = zmm0 & zmm1;
             var zmm3 = Vector512.Create(byte.MinValue, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
+            var zmm31 = Vector128.Create((byte)0, 8, 16, 24, 32, 40, 48, 56, 0, 0, 0, 0, 0, 0, 0, 0).ToVector256Unsafe().ToVector512Unsafe();
             zmm2 = Vector512.ShiftRightLogical(zmm2.AsUInt16(), 4).AsByte();
             zmm0 = Avx512F.AndNot(zmm1, zmm0);
             var xmm4 = Vector128<byte>.Zero;
@@ -1469,9 +1737,21 @@ namespace Cometris.Boards
             zmm2 = Avx512BW.Shuffle(zmm3, zmm2);
             zmm0 += zmm2;
             zmm0 = Avx512BW.SumAbsoluteDifferences(zmm0, zmm4).AsByte();
-            var xmm0 = Avx512F.ConvertToVector128Byte(zmm0.AsUInt64());
+            var xmm0 = Avx512Vbmi.IsSupported ? Avx512Vbmi.PermuteVar64x8(zmm0, zmm31).GetLower().GetLower() : Avx512F.ConvertToVector128Byte(zmm0.AsUInt64());
             xmm0 = Sse2.SumAbsoluteDifferences(xmm0, xmm4).AsByte();
             return xmm0.AsInt32().GetElement(0);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        public static int GetBlockHeight(PartialBitBoard512 board) => GetBlockHeight(board.storage);
+
+        internal static int GetBlockHeight(Vector512<ushort> storage)
+        {
+            var zmm0 = storage;
+            var zmm31 = Vector512.Create(FullBitBoard.InvertedEmptyRow);
+            zmm0 &= zmm31;
+            var k1 = Avx512BW.CompareNotEqual(zmm0, Vector512<ushort>.Zero);
+            return BitOperations.LeadingZeroCount(0u) - BitOperations.LeadingZeroCount((uint)k1.ExtractMostSignificantBits());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -1495,7 +1775,7 @@ namespace Cometris.Boards
         public bool Equals(PartialBitBoard512 other) => this == other;
         public override bool Equals(object? obj) => obj is PartialBitBoard512 board && Equals(board);
 
-        public override int GetHashCode() => storage.GetHashCode();
+        public override int GetHashCode() => HashCode.Combine(CalculateHash(this));
 
         private string GetDebuggerDisplay() => ((PartialBitBoard256X2)this).GetDebuggerDisplay();
 
@@ -1504,6 +1784,88 @@ namespace Cometris.Boards
         {
             var m = mask.ExtractMostSignificantBits();
             return ((m >> index) & 1) > 0;
+        }
+
+        #endregion
+
+        #region Hash Operations
+        public static ulong CalculateHash(PartialBitBoard512 board, ulong key = default)
+        {
+            var zmm0 = board.storage;
+            var zmm31 = ~Vector512<ushort>.Indices;
+            var zmm30 = Vector512.Create((byte)0x0f).AsUInt16();
+            var zmm29 = Vector512.Create(
+                168, 162, 130, 34, 8, 170, 32, 40, 42, 0, 138, 10, 2, 128, 160, 136,
+                160, 32, 136, 130, 170, 40, 10, 2, 0, 42, 8, 168, 162, 138, 34, 128,
+                8, 130, 40, 34, 0, 160, 138, 170, 168, 10, 32, 2, 162, 42, 128, 136,
+                160, 42, 130, 34, 0, 138, 8, 168, 170, 136, 10, 2, 162, 128, 40, 32);
+            var zmm28 = Vector512.Create((byte)
+                68, 80, 64, 65, 21, 1, 4, 5, 69, 20, 17, 85, 81, 0, 16, 84,
+                65, 81, 68, 20, 80, 85, 0, 69, 5, 1, 84, 16, 21, 4, 17, 64,
+                5, 64, 20, 4, 84, 80, 81, 0, 1, 17, 16, 85, 68, 21, 65, 69,
+                17, 4, 69, 84, 20, 64, 5, 85, 81, 21, 80, 16, 68, 65, 0, 1);
+            var zmm26 = Vector512.Create(50754, 48049, 64569, 1817, 27326, 6051, 37990, 33887, 16956, 13030, 41406, 11722, 2980, 38674, 34301, 478, 14287, 22547, 34803, 23018, 64232, 62172, 25075, 50580, 50423, 3753, 46921, 50138, 43248, 11191, 21398, 65253);
+            var zmm27 = Vector512.Create(
+                        8, 2, 7, 1, 6, 10, 5, 0, 4, 11, 14, 3, 9, 15, 13, 12,
+                        6, 4, 0, 1, 8, 7, 11, 9, 13, 3, 14, 15, 5, 2, 12, 10,
+                        3, 13, 10, 6, 5, 2, 14, 4, 11, 0, 8, 12, 9, 15, 1, 7,
+                        15, 12, 6, 8, 11, 0, 9, 3, 14, 4, 2, 7, 10, 5, 13, (byte)1);
+            var ymm15 = Vector256.Create(11231, 43655, 58474, 2655, 62987, 28428, 50195, 12224, 14485, 35104, 8666, 12975, 22706, 52105, 12257, 40543);
+            var xmm14 = Vector128.Create(30215, 55752, 31273, 50575, 33383, 9724, 18163, 46263);
+            var height = (uint)GetBlockHeight(zmm0);
+            var zmm3 = Vector512.Create(key).AsUInt16() ^ zmm26;
+            zmm0 ^= zmm3;
+            var zmm1 = Vector512.Create((ushort)height);
+            zmm31 += zmm1;
+            var zmm2 = zmm0 >> 4;
+            zmm0 &= zmm30;
+            zmm2 &= zmm30;
+            zmm2 = Avx512BW.Shuffle(zmm28, zmm2.AsByte()).AsUInt16();
+            zmm0 = Avx512BW.Shuffle(zmm29, zmm0.AsByte()).AsUInt16();
+            zmm0 |= zmm2;
+            zmm1 = Avx512BW.PermuteVar32x16(zmm0, zmm31);
+            zmm1 += zmm3;
+            var zmm4 = zmm3;
+            zmm0 = zmm1;
+            for (var i = 0; i < 8; i++)
+            {
+                zmm1 = Avx512F.AlignRight32(zmm0.AsUInt32(), zmm0.AsUInt32(), 4).AsUInt16();
+                zmm2 = Avx512BW.Shuffle(zmm0.AsByte(), zmm27).AsUInt16();
+                zmm4 += zmm3;
+                zmm2 >>= 4;
+                zmm1 &= zmm30;
+                zmm2 &= zmm30;
+                zmm2 = Avx512BW.Shuffle(zmm28, zmm2.AsByte()).AsUInt16();
+                zmm1 = Avx512BW.Shuffle(zmm29, zmm1.AsByte()).AsUInt16();
+                zmm4 ^= zmm2 | zmm1;
+                zmm1 = Avx512F.AlignRight32(zmm0.AsUInt32(), zmm0.AsUInt32(), 7).AsUInt16();
+                zmm2 = Avx512BW.Shuffle(zmm0.AsByte(), zmm27).AsUInt16();
+                zmm0 += zmm3;
+                zmm2 >>= 4;
+                zmm1 &= zmm30;
+                zmm2 &= zmm30;
+                zmm2 = Avx512BW.Shuffle(zmm29, zmm2.AsByte()).AsUInt16();
+                zmm1 = Avx512BW.Shuffle(zmm28, zmm1.AsByte()).AsUInt16();
+                zmm0 ^= zmm2 | zmm1;
+            }
+            var ymm1 = ymm15 + zmm0.GetLower();
+            var ymm2 = ymm1 >> 4;
+            ymm2 &= zmm30.GetLower();
+            ymm1 &= zmm30.GetLower();
+            ymm2 = Avx2.Shuffle(zmm28.GetLower(), ymm2.AsByte()).AsUInt16();
+            ymm1 = Avx2.Shuffle(zmm29.GetLower(), ymm1.AsByte()).AsUInt16();
+            var ymm0 = zmm0.GetLower() + (ymm1 | ymm2);
+            var xmm1 = ymm0.GetUpper();
+            var xmm2 = Pclmulqdq.CarrylessMultiply(xmm1.AsUInt64(), xmm14.AsUInt64(), 0x00).AsUInt16();
+            xmm1 = Pclmulqdq.CarrylessMultiply(xmm1.AsUInt64(), xmm14.AsUInt64(), 0x11).AsUInt16();
+            xmm1 = Sse.Shuffle(xmm1.AsSingle(), xmm2.AsSingle(), 0b01_00_01_00).AsUInt16();
+            var xmm0 = ymm0.GetLower() + xmm1;
+            var rcx = xmm0.AsUInt64().GetElement(1);
+            var rax = xmm0.AsUInt64().GetElement(0);
+            rcx *= 9452341668337194139ul;
+            rax += rcx;
+            return rax;
+            //return zmm0.AsUInt64().GetElement(0);
         }
         #endregion
     }

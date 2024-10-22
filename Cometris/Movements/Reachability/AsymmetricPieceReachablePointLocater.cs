@@ -6,14 +6,14 @@ using Cometris.Pieces.Mobility;
 namespace Cometris.Movements.Reachability
 {
     public readonly struct AsymmetricPieceReachablePointLocater<TBitBoard, TRotatabilityLocator> : IAsymmetricPieceReachablePointLocater<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         where TRotatabilityLocator : unmanaged, IRotatabilityLocator<TRotatabilityLocator, TBitBoard>
     {
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) LocateReachablePointsFirstStep(TBitBoard spawn, (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) mobilityBoards)
         {
             // Spawn
-            TBitBoard tempU = spawn, tempR, tempL;
+            TBitBoard tempU = spawn & mobilityBoards.upper, tempR, tempL;
             var rightMobility = mobilityBoards.right;
             var leftMobility = mobilityBoards.left;
             // Initial Rotation
@@ -59,7 +59,7 @@ namespace Cometris.Movements.Reachability
     }
 
     public readonly struct TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, TRotatabilityLocator, TPieceMovablePointLocater> : ITwoRotationSymmetricPieceReachablePointLocater<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         where TRotatabilityLocator : unmanaged, IRotatabilityLocator<TRotatabilityLocator, TBitBoard>
         where TPieceMovablePointLocater : ITwoRotationSymmetricPieceMovablePointLocater<TBitBoard>
     {

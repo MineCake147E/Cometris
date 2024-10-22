@@ -12,7 +12,7 @@ namespace Cometris.Evaluation
     public static class BoardStatistics
     {
         public static (int overhangs, int overhangedCells) CountOverhangs<TBitBoard>(TBitBoard board)
-            where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+            where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         {
             var b = board;
             var up = TBitBoard.ShiftDownOneLine(b, TBitBoard.Zero);
@@ -23,7 +23,7 @@ namespace Cometris.Evaluation
         }
 
         public static (int walls, int doubleSidedWalls, int tripleConsecutiveDoubleWalls) CountWalls<TBitBoard>(TBitBoard board)
-            where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+            where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
         {
             var b = board;
             var left = b >> 1;
@@ -36,7 +36,7 @@ namespace Cometris.Evaluation
             return (TBitBoard.TotalBlocks(singleWalls), TBitBoard.TotalBlocks(doubleWalls), TBitBoard.TotalBlocks(tcdw));
         }
         public static (int safeBlocks, int safeHeight, int dangerousBlocks, int dangerousHeight) AggregateTerrain<TBitBoard, TVectorLineMask, TCompactLineMask>(TBitBoard board, ushort safeMask = 0xfc3f)
-            where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>, IMaskableBitBoard<TBitBoard, ushort, TVectorLineMask, TCompactLineMask>
+            where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>, ICompactMaskableBitBoard<TBitBoard, ushort, TVectorLineMask, TCompactLineMask>
             where TVectorLineMask : struct, IEquatable<TVectorLineMask>
             where TCompactLineMask : unmanaged, IBinaryInteger<TCompactLineMask>
         {

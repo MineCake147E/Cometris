@@ -13,7 +13,7 @@ namespace Cometris.Tests.Movements
 {
     [TestFixture(typeof(PartialBitBoard256X2))]
     [TestFixture(typeof(PartialBitBoard512))]
-    public partial class PieceRotatabilityLocatorTests<TBitBoard> where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+    public partial class PieceRotatabilityLocatorTests<TBitBoard> where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         #region Offsets
         static IReadOnlyList<Point> OffsetsUpIPiece => [new Point(0, 0), new Point(-1, 0), new Point(+2, 0), new Point(-1, 0), new Point(+2, 0)];

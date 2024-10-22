@@ -11,9 +11,11 @@ using Cometris.Pieces.Placing;
 namespace Cometris.Pieces
 {
     public interface IPieceRegistry<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
+        static abstract TBitBoard PlacePiece<TPiecePlacement>(TPiecePlacement placement) where TPiecePlacement : unmanaged, IPiecePlacement<TPiecePlacement>;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        static abstract (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) LocateMovablePoints(Piece piece, TBitBoard bitBoard);
+        static abstract (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) LocateMovablePoints(Piece piece, TBitBoard board);
     }
 }

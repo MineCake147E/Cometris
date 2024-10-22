@@ -2,7 +2,7 @@
 
 namespace Cometris.Tests.Integration
 {
-    public sealed class SimpleGameTree<TBitBoard> where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+    public sealed class SimpleGameTree<TBitBoard> where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         private ReadOnlyMemory<CompressedPositionsTuple> Positions { get; }
 

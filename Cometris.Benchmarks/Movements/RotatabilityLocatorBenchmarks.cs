@@ -18,7 +18,7 @@ namespace Cometris.Benchmarks.Movements
     [DisassemblyDiagnoser(maxDepth: int.MaxValue)]
     public partial class RotatabilityLocatorBenchmarks<TBitBoard, TRotatabilityLocator>
         where TRotatabilityLocator : unmanaged, IRotatabilityLocator<TRotatabilityLocator, TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         private const int OperationsPerInvoke = 4096;
 

@@ -15,7 +15,7 @@ namespace Cometris.Benchmarks.PartialBitBoard
     [GenericTypeArguments(typeof(PartialBitBoard256X2), typeof(PartialBitBoard256X2))]
     [GenericTypeArguments(typeof(PartialBitBoard512), typeof(Vector512<ushort>))]
     public class PartialBitBoardBenchmarks<TBitBoard, TLineMask>
-        where TBitBoard : unmanaged, IMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
+        where TBitBoard : unmanaged, ICompactMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
         where TLineMask : struct, IEquatable<TLineMask>
     {
         public PartialBitBoardBenchmarks() { }
@@ -134,6 +134,79 @@ namespace Cometris.Benchmarks.PartialBitBoard
                 start2 = TBitBoard.ShiftDownOneLine(start2, start2);
                 start3 = TBitBoard.ShiftDownOneLine(start3, start3);
                 (board0, board1, board2, board3) = TBitBoard.FillDropReachable4Sets(board0, board1, board2, board3, start0, start1, start2, start3);
+                start0 = TBitBoard.ShiftDownOneLine(start0, start0);
+                start1 = TBitBoard.ShiftDownOneLine(start1, start1);
+                start2 = TBitBoard.ShiftDownOneLine(start2, start2);
+                start3 = TBitBoard.ShiftDownOneLine(start3, start3);
+            }
+            return (board0, board1, board2, board3);
+        }
+
+        [BenchmarkCategory(nameof(FillHorizontalReachable))]
+        [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
+        public TBitBoard FillHorizontalReachable()
+        {
+            var board0 = TBitBoard.InvertedEmpty;
+            var board1 = TBitBoard.Zero;
+            var start0 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2));
+            for (var i = 0; i < OperationsPerInvoke / 2; i++)
+            {
+                board1 ^= TBitBoard.FillHorizontalReachable(board0, start0);
+                start0 = TBitBoard.ShiftDownOneLine(start0, start0);
+                board1 ^= TBitBoard.FillHorizontalReachable(board0, start0);
+                start0 = TBitBoard.ShiftDownOneLine(start0, start0);
+            }
+            return board1;
+        }
+
+        [BenchmarkCategory(nameof(FillHorizontalReachable4Sets))]
+        [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
+        public (TBitBoard, TBitBoard, TBitBoard, TBitBoard) FillHorizontalReachable4Sets()
+        {
+            var board0 = TBitBoard.InvertedEmpty;
+            var board1 = TBitBoard.Zero;
+            var board2 = TBitBoard.InvertedEmpty;
+            var board3 = TBitBoard.Zero;
+            var start0 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2 - 2));
+            var start1 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2 - 1));
+            var start2 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2));
+            var start3 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2 + 1));
+            for (var i = 0; i < OperationsPerInvoke / 2; i++)
+            {
+                (board0, board1, board2, board3) = TBitBoard.FillHorizontalReachable4Sets((board0, board1, board2, board3), (start0, start1, start2, start3));
+                start0 = TBitBoard.ShiftDownOneLine(start0, start0);
+                start1 = TBitBoard.ShiftDownOneLine(start1, start1);
+                start2 = TBitBoard.ShiftDownOneLine(start2, start2);
+                start3 = TBitBoard.ShiftDownOneLine(start3, start3);
+                (board0, board1, board2, board3) = TBitBoard.FillHorizontalReachable4Sets((board0, board1, board2, board3), (start0, start1, start2, start3));
+                start0 = TBitBoard.ShiftDownOneLine(start0, start0);
+                start1 = TBitBoard.ShiftDownOneLine(start1, start1);
+                start2 = TBitBoard.ShiftDownOneLine(start2, start2);
+                start3 = TBitBoard.ShiftDownOneLine(start3, start3);
+            }
+            return (board0, board1, board2, board3);
+        }
+
+        [BenchmarkCategory(nameof(FillHorizontalReachable4Sets))]
+        [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
+        public (TBitBoard, TBitBoard, TBitBoard, TBitBoard) FillHorizontalReachable4SetsNonTuple()
+        {
+            var board0 = TBitBoard.InvertedEmpty;
+            var board1 = TBitBoard.Zero;
+            var board2 = TBitBoard.InvertedEmpty;
+            var board3 = TBitBoard.Zero;
+            var start0 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2 - 2));
+            var start1 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2 - 1));
+            var start2 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2));
+            var start3 = TBitBoard.CreateFilled(TBitBoard.CreateSingleBlockLine(TBitBoard.StorableWidth / 2 + 1));
+            for (var i = 0; i < OperationsPerInvoke / 2; i++)
+            {
+                (board0, board1, board2, board3) = TBitBoard.FillHorizontalReachable4Sets(board0, board1, board2, board3, start0, start1, start2, start3);
+                start0 = TBitBoard.ShiftDownOneLine(start0, start0);
+                start1 = TBitBoard.ShiftDownOneLine(start1, start1);
+                start2 = TBitBoard.ShiftDownOneLine(start2, start2);
+                start3 = TBitBoard.ShiftDownOneLine(start3, start3);
+                (board0, board1, board2, board3) = TBitBoard.FillHorizontalReachable4Sets(board0, board1, board2, board3, start0, start1, start2, start3);
                 start0 = TBitBoard.ShiftDownOneLine(start0, start0);
                 start1 = TBitBoard.ShiftDownOneLine(start1, start1);
                 start2 = TBitBoard.ShiftDownOneLine(start2, start2);

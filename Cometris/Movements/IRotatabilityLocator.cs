@@ -6,7 +6,7 @@ namespace Cometris.Movements
 {
     public partial interface IRotatabilityLocator<TSelf, TBitBoard>
         where TSelf : unmanaged, IRotatabilityLocator<TSelf, TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         [SkipLocalsInit]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]

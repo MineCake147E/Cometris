@@ -4,10 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cometris.Intelligence.Graph.Simple
+namespace Cometris.Tests.Boards.Hashing
 {
-    public sealed class SimpleGameGraph
+    [TestFixture]
+    public class BoardHashTests
     {
-
     }
 }

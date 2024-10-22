@@ -4,10 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cometris.Intelligence.Graph.Simple.Piece
+namespace Cometris.Intelligence.Graph.Layers
 {
-    public sealed class PieceGraph
+    internal class SequentialPieceGraphLayer
     {
-
     }
 }

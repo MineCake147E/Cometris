@@ -108,5 +108,16 @@ namespace Cometris.Tests
             list ??= new([elementToAdd]);
             return list;
         }
+
+        internal static IEnumerable<(T, T)> GenerateAllTwoCombinationsOf<T>(T[] values)
+        {
+            for (var i = 0; i < values.Length; i++)
+            {
+                for (int j = i + 1; j < values.Length; j++)
+                {
+                    yield return (values[i], values[j]);
+                }
+            }
+        }
     }
 }

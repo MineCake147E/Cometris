@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net8.0</TargetFrameworks>
+        <TargetFrameworks>net9.0</TargetFrameworks>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
         <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
@@ -20,31 +20,38 @@
     <ItemGroup>
       <ProjectReference Include="..\MikoMino\MikoMino\MikoMino.csproj" />
     </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Boards\Storage\" />
+      <Folder Include="Intelligence\Graph\Bag\" />
+      <Folder Include="Intelligence\Graph\Indexing\" />
+      <Folder Include="Utils\Collections\" />
+    </ItemGroup>
+
     
     <Target Name="DependUponMessageBeforeBuild" BeforeTargets="TextTemplateTransform">
         <ItemGroup>
-            <ItemThatDependsUponSomethingBeforeBuild Include="@(Compile->HasMetadata('DependentUpon'))" UpToDateCheckInput="false"/>
-            <DependsUponMessageBeforeBuildItem Include="@(ItemThatDependsUponSomethingBeforeBuild)" Text="%(Identity) depends upon %(DependentUpon)" UpToDateCheckInput="false"/>
-            <DependsUponMessageWithExistenceBeforeBuild Include="@(DependsUponMessageBeforeBuildItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false"/>
-            <DependsUponMessageWithExistenceBeforeBuild Include="@(DependsUponMessageBeforeBuildItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false"/>
+            <ItemThatDependsUponSomethingBeforeBuild Include="@(Compile-&gt;HasMetadata('DependentUpon'))" UpToDateCheckInput="false" />
+            <DependsUponMessageBeforeBuildItem Include="@(ItemThatDependsUponSomethingBeforeBuild)" Text="%(Identity) depends upon %(DependentUpon)" UpToDateCheckInput="false" />
+            <DependsUponMessageWithExistenceBeforeBuild Include="@(DependsUponMessageBeforeBuildItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false" />
+            <DependsUponMessageWithExistenceBeforeBuild Include="@(DependsUponMessageBeforeBuildItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false" />
         </ItemGroup>
         <Message Text="%(DependsUponMessageWithExistenceBeforeBuild.Text)" />
     </Target>
     <Target Name="DependUponMessageAfterBuild" AfterTargets="Build">
         <ItemGroup>
-            <ItemThatDependsUponSomethingAfterBuild Include="@(Compile->HasMetadata('DependentUpon'))" UpToDateCheckInput="false"/>
-            <DependsUponMessageAfterBuildItem Include="@(ItemThatDependsUponSomethingAfterBuild)" Text="%(Identity) depends upon %(DependentUpon)" UpToDateCheckInput="false"/>
-            <DependsUponMessageWithExistenceAfterBuild Include="@(DependsUponMessageAfterBuildItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false"/>
-            <DependsUponMessageWithExistenceAfterBuild Include="@(DependsUponMessageAfterBuildItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false"/>
+            <ItemThatDependsUponSomethingAfterBuild Include="@(Compile-&gt;HasMetadata('DependentUpon'))" UpToDateCheckInput="false" />
+            <DependsUponMessageAfterBuildItem Include="@(ItemThatDependsUponSomethingAfterBuild)" Text="%(Identity) depends upon %(DependentUpon)" UpToDateCheckInput="false" />
+            <DependsUponMessageWithExistenceAfterBuild Include="@(DependsUponMessageAfterBuildItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false" />
+            <DependsUponMessageWithExistenceAfterBuild Include="@(DependsUponMessageAfterBuildItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false" />
         </ItemGroup>
         <Message Text="%(DependsUponMessageWithExistenceAfterBuild.Text)" />
     </Target>
     <Target Name="UpToDateCheckBuiltMessageBeforeBuild" AfterTargets="Build">
         <ItemGroup>
-            <ItemThatChecksUpToDate Include="@(UpToDateCheckBuilt->HasMetadata('Original'))" UpToDateCheckInput="false"/>
-            <UpToDateMessageItem Include="@(ItemThatChecksUpToDate)" Text="%(Identity) is generated from %(Original)" UpToDateCheckInput="false"/>
-            <UpToDateMessageWithExistence Include="@(UpToDateMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false"/>
-            <UpToDateMessageWithExistence Include="@(UpToDateMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false"/>
+            <ItemThatChecksUpToDate Include="@(UpToDateCheckBuilt-&gt;HasMetadata('Original'))" UpToDateCheckInput="false" />
+            <UpToDateMessageItem Include="@(ItemThatChecksUpToDate)" Text="%(Identity) is generated from %(Original)" UpToDateCheckInput="false" />
+            <UpToDateMessageWithExistence Include="@(UpToDateMessageItem)" Condition="Exists('%(Identity)')" Text="%(Text) and it exists." UpToDateCheckInput="false" />
+            <UpToDateMessageWithExistence Include="@(UpToDateMessageItem)" Condition="!Exists('%(Identity)')" Text="%(Text) but it doesn't exist." UpToDateCheckInput="false" />
         </ItemGroup>
         <Message Text="%(UpToDateMessageWithExistence.Text)" />
     </Target>

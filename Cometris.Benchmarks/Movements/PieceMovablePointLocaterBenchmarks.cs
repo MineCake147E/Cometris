@@ -13,7 +13,7 @@ namespace Cometris.Benchmarks
     [DisassemblyDiagnoser(maxDepth: int.MaxValue)]
     public partial class PieceMovablePointLocaterBenchmarks<TBitBoard, TPieceMovablePointLocater>
         where TPieceMovablePointLocater : IAsymmetricPieceMovablePointLocater<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         private const int OperationsPerInvoke = 2048;
 

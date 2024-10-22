@@ -4,7 +4,7 @@ using Cometris.Boards;
 
 namespace Cometris.Pieces.Mobility
 {
-    public readonly struct PieceJMovablePointLocater<TBitBoard> : IAsymmetricPieceMovablePointLocater<TBitBoard> where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+    public readonly struct PieceJMovablePointLocater<TBitBoard> : IAsymmetricPieceMovablePointLocater<TBitBoard> where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         public static (TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) LocateMovablePoints(TBitBoard bitBoard)
             => LocateMovablePointsInternal(~bitBoard);
@@ -14,8 +14,8 @@ namespace Cometris.Pieces.Mobility
         {
             var rightBoard = invertedBoard << 1;
             var leftBoard = invertedBoard >> 1;
-            var upperBoard = TBitBoard.ShiftDownOneLine(invertedBoard, FullBitBoard.InvertedEmptyRow);
-            var lowerBoard = TBitBoard.ShiftUpOneLine(invertedBoard, 0);
+            var upperBoard = TBitBoard.ShiftDownOneLine(invertedBoard, TBitBoard.InvertedEmpty);
+            var lowerBoard = TBitBoard.ShiftUpOneLine(invertedBoard, TBitBoard.Zero);
             var vertical = upperBoard & lowerBoard;
             var horizontal = leftBoard & rightBoard;
             vertical &= invertedBoard;

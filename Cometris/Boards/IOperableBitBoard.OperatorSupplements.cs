@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Cometris.Boards
 {
-    public partial interface IBitBoard<TSelf, TLineElement>
+    public partial interface IOperableBitBoard<TSelf, TLineElement>
     {
         #region Operator Supplement
         /// <summary>
@@ -117,6 +117,17 @@ namespace Cometris.Boards
             var tempR = TSelf.AndNot(rightNegated, rightOperand);
             var tempD = TSelf.AndNot(lowerNegated, lowerOperand);
             var tempL = TSelf.AndNot(leftNegated, leftOperand);
+            return (tempU, tempR, tempD, tempL);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+        static virtual (TSelf upper, TSelf right, TSelf lower, TSelf left) AndNot4Sets(TSelf exclusion, (TSelf upper, TSelf right, TSelf lower, TSelf left) right)
+        {
+            (var upperOperand, var rightOperand, var lowerOperand, var leftOperand) = (right.upper, right.right, right.lower, right.left);
+            var tempU = TSelf.AndNot(exclusion, upperOperand);
+            var tempR = TSelf.AndNot(exclusion, rightOperand);
+            var tempD = TSelf.AndNot(exclusion, lowerOperand);
+            var tempL = TSelf.AndNot(exclusion, leftOperand);
             return (tempU, tempR, tempD, tempL);
         }
         #endregion

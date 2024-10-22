@@ -7,7 +7,7 @@ using MikoMino;
 namespace Cometris.Pieces.Placing
 {
     public interface IPiecePlacer<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         static abstract TBitBoard Place(Angle angle, int x, int y);
@@ -26,7 +26,7 @@ namespace Cometris.Pieces.Placing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static TBitBoard Place<TBitBoard, TPiecePlacer>(Angle angle, int x, int y)
-            where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+            where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
             where TPiecePlacer : unmanaged, IPiecePlacer<TBitBoard>
             => angle switch
             {

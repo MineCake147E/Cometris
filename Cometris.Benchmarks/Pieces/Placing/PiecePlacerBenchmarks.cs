@@ -20,7 +20,7 @@ namespace Cometris.Benchmarks.Pieces.Placing
     //[AllCategoriesFilter(nameof(PlaceRight))]
     public partial class PiecePlacerBenchmarks<TPiecePlacer, TBitBoard, TLineMask>
         where TPiecePlacer : unmanaged, IPiecePlacer<TBitBoard>
-        where TBitBoard : unmanaged, IMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
+        where TBitBoard : unmanaged, ICompactMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
         where TLineMask : struct, IEquatable<TLineMask>
     {
         public const int OperationsPerInvoke = 16384;

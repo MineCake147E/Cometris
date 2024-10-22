@@ -10,7 +10,7 @@ using Cometris.Utils;
 namespace Cometris.Tests.Integration
 {
     public sealed class SimpleRouteFinder<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         private static void FindNextStepsWithPiece<TBufferWriter>(TBitBoard board, Piece piece, AngleTuple<TBufferWriter> writer)
             where TBufferWriter : IBufferWriter<CompressedPositionsTuple>

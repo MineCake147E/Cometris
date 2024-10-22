@@ -7,7 +7,7 @@ namespace Cometris.Tests.Pieces.Placing
     [TestFixture(typeof(PartialBitBoard256X2))]
     [TestFixture(typeof(PartialBitBoard512))]
     public class PiecePlacerTests<TBitBoard>
-        where TBitBoard : unmanaged, IBitBoard<TBitBoard, ushort>
+        where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         internal static IEnumerable<TestCaseData> BitBoardTestCaseSource()
         {
