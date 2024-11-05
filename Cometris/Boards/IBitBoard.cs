@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Cometris.Boards
 {
-    public interface IBitBoard<TSelf, TLineElement> : IEquatable<TSelf>, IEqualityOperators<TSelf, TSelf, bool>
+    public interface IBitBoard<TSelf, TLineElement> : IEquatable<TSelf>, IEqualityOperators<TSelf, TSelf, bool>, IReadOnlyList<TLineElement>
         where TSelf : unmanaged, IBitBoard<TSelf, TLineElement>
         where TLineElement : unmanaged, IBinaryNumber<TLineElement>, IUnsignedNumber<TLineElement>
     {
@@ -56,8 +56,6 @@ namespace Cometris.Boards
 
         static virtual int TotalEffectiveBlocks => TSelf.Height * TSelf.EffectiveWidth;
         #endregion
-
-        TLineElement this[int y] { get; }
 
         int GetHashCode();
     }

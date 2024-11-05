@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
@@ -66,13 +68,42 @@ namespace Cometris.Boards
         #endregion
 
         #region Visualization
-        public static void AppendSquareDisplay(this StringBuilder sb, ReadOnlySpan<ushort> source)
+
+        [OverloadResolutionPriority(1)]
+        public static void AppendSquareDisplay(this StringBuilder sb, params ReadOnlySpan<ushort> source)
+        {
+            var src = source;
+            var upperStreak = true;
+            var upperStreakCount = 0;
+            var previousItem = src[^1];
+            for (var i = src.Length - 1; i >= 0; i--)
+            {
+                var item = src[i];
+                if (!upperStreak | item != previousItem)
+                {
+                    _ = sb.Append($"{i + 1,2}: ");
+                    _ = sb.Append(VisualizeLine(previousItem));
+                    _ = sb.AppendLine(!upperStreak | (upperStreakCount < 2) ? "" : $" x{upperStreakCount}");
+                    upperStreakCount = 1;
+                }
+                else
+                {
+                    upperStreakCount++;
+                }
+                previousItem = item;
+            }
+            _ = sb.Append($"{0,2}: ");
+            _ = sb.Append(VisualizeLine(previousItem));
+            _ = sb.Append(!upperStreak | (upperStreakCount < 2) ? "" : $" x{upperStreakCount}");
+        }
+
+        public static void AppendSquareDisplay<TList>(this StringBuilder sb, TList source) where TList : IReadOnlyList<ushort>, allows ref struct
         {
             var a = source;
             var upperStreak = true;
             var upperStreakCount = 0;
             var previousItem = a[^1];
-            for (var i = a.Length - 1; i >= 0; i--)
+            for (var i = a.Count - 1; i >= 0; i--)
             {
                 var item = a[i];
                 if (!upperStreak | item != previousItem)
@@ -93,7 +124,7 @@ namespace Cometris.Boards
             _ = sb.Append(!upperStreak | (upperStreakCount < 2) ? "" : $" x{upperStreakCount}");
         }
 
-        private static string VisualizeLine(ushort line) => Convert.ToString(line, 2).PadLeft(16, '0').Replace('0', '□').Replace('1', '■');
+        public static string VisualizeLine(ushort line) => Convert.ToString(line, 2).PadLeft(16, '0').Replace('0', '□').Replace('1', '■');
 
         public static string VisualizeOrientations<TBitBoard>((TBitBoard upper, TBitBoard right, TBitBoard lower, TBitBoard left) boards)
             where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>

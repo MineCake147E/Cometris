@@ -1,3 +1,6 @@
 [submodule "MikoMino"]
 	path = MikoMino
 	url = https://github.com/MineCake147E/MikoMino.git
+[submodule "ModernMemory"]
+	path = ModernMemory
+	url = https://github.com/MineCake147E/ModernMemory.git

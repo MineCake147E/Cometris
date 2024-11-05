@@ -15,6 +15,16 @@
     </PropertyGroup>
     <Import Project="../Cometris.targets" />
     <ItemGroup>
+      <Compile Remove="Boards\Microsoft\**" />
+      <Compile Remove="Microsoft\**" />
+      <EmbeddedResource Remove="Boards\Microsoft\**" />
+      <EmbeddedResource Remove="Microsoft\**" />
+      <None Remove="Boards\Microsoft\**" />
+      <None Remove="Microsoft\**" />
+      <TextTemplate Remove="Boards\Microsoft\**" />
+      <TextTemplate Remove="Microsoft\**" />
+    </ItemGroup>
+    <ItemGroup>
         <PackageReference Include="Shamisen.Utils" Version="0.1.0-alpha.0.7.0" />
     </ItemGroup>
     <ItemGroup>
