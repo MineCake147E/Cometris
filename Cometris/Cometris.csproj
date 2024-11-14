@@ -29,6 +29,7 @@
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\MikoMino\MikoMino\MikoMino.csproj" />
+      <ProjectReference Include="..\ModernMemory\ModernMemory\ModernMemory.csproj" />
     </ItemGroup>
     <ItemGroup>
       <Folder Include="Boards\Storage\" />

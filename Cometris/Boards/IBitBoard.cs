@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -56,6 +57,14 @@ namespace Cometris.Boards
 
         static virtual int TotalEffectiveBlocks => TSelf.Height * TSelf.EffectiveWidth;
         #endregion
+
+        int IReadOnlyCollection<TLineElement>.Count => TSelf.Height;
+
+        new BoardLineEnumerable<TSelf, TLineElement>.Enumerator GetEnumerator() => new((TSelf)this);
+
+        IEnumerator<TLineElement> IEnumerable<TLineElement>.GetEnumerator() => GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         int GetHashCode();
     }

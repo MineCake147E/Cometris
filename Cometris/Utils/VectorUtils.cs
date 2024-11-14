@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.Wasm;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Cometris.Utils
 {
-    public static class VectorUtils
+    public static partial class VectorUtils
     {
         public static Vector128<byte> VectorTableLookup(Vector128<byte> table, Vector128<byte> indices)
         {
@@ -29,6 +30,13 @@ namespace Cometris.Utils
             return Vector128.Shuffle(table, indices);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="left"></param>
+        /// <param name="right"></param>
+        /// <param name="mask"></param>
+        /// <returns>mask ? right : left</returns>
         public static Vector128<ushort> BlendVariable(Vector128<ushort> left, Vector128<ushort> right, Vector128<ushort> mask)
         {
             if (AdvSimd.IsSupported)
@@ -98,5 +106,305 @@ namespace Cometris.Utils
             v0_16b += v1_16b;
             return v0_16b.AsUInt16();
         }
+
+        #region Arithmetics
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<ushort> MultiplyAdd(Vector128<ushort> addend, Vector128<ushort> left, Vector128<ushort> right)
+            => AdvSimd.IsSupported ? AdvSimd.MultiplyAdd(addend, left, right) : addend + left * right;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<ushort> MultiplyHigh(Vector128<ushort> left, Vector128<ushort> right)
+        {
+            if (Sse2.IsSupported)
+            {
+                return Sse2.MultiplyHigh(left, right);
+            }
+            var v0_8h = left;
+            var v1_8h = right;
+            var v2_4s = MultiplyWideningLower(v0_8h, v1_8h);
+            var v3_4s = MultiplyWideningUpper(v0_8h, v1_8h);
+            if (AdvSimd.IsSupported)
+            {
+                var v2_4h = AdvSimd.ShiftRightLogicalNarrowingLower(v2_4s, 16);
+                return AdvSimd.ShiftRightLogicalNarrowingSaturateUpper(v2_4h, v3_4s, 16);
+            }
+            v2_4s >>= 16;
+            v3_4s >>= 16;
+            if (PackedSimd.IsSupported)
+            {
+                return PackedSimd.ConvertNarrowingSaturateUnsigned(v2_4s.AsInt32(), v3_4s.AsInt32());
+            }
+            else
+            {
+                // Fallback
+                return Vector128.Narrow(v2_4s, v3_4s);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<uint> MultiplyWideningLower(Vector128<ushort> left, Vector128<ushort> right)
+        {
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.MultiplyWideningLower(left.GetLower(), right.GetLower());
+            }
+            if (PackedSimd.IsSupported)
+            {
+                return PackedSimd.MultiplyWideningLower(left, right);
+            }
+            // Fallback
+            return Vector128.WidenLower(left) * Vector128.WidenLower(right);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<uint> MultiplyWideningUpper(Vector128<ushort> left, Vector128<ushort> right)
+        {
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.MultiplyWideningUpper(left, right);
+            }
+            if (PackedSimd.IsSupported)
+            {
+                return PackedSimd.MultiplyWideningUpper(left, right);
+            }
+            // Fallback
+            return Vector128.WidenUpper(left) * Vector128.WidenUpper(right);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<byte> NarrowLower(Vector128<ushort> vector)
+        {
+            if (Avx512BW.VL.IsSupported)
+            {
+                return Avx512BW.VL.ConvertToVector128Byte(vector);
+            }
+            if (Sse2.IsSupported)
+            {
+                return Sse2.PackUnsignedSaturate(vector.AsInt16(), default);
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.ExtractNarrowingLower(vector).ToVector128();
+            }
+            // Fallback
+            return Vector128.Narrow(vector, default);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<byte> NarrowLowerUnsafe(Vector128<ushort> vector)
+        {
+            if (Avx512BW.VL.IsSupported)
+            {
+                return Avx512BW.VL.ConvertToVector128Byte(vector);
+            }
+            if (Sse2.IsSupported)
+            {
+                return Sse2.PackUnsignedSaturate(vector.AsInt16(), vector.AsInt16());
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.ExtractNarrowingLower(vector).ToVector128();
+            }
+            // Fallback
+            return Vector128.Narrow(vector, vector);
+        }
+
+        #endregion
+
+        #region Broadcast
+        internal static Vector128<byte> BroadcastFirstElementByte(Vector128<byte> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Ssse3.IsSupported)
+            {
+                return Ssse3.Shuffle(vector, Vector128<byte>.Zero);
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<sbyte> BroadcastFirstElementSByte(Vector128<sbyte> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Ssse3.IsSupported)
+            {
+                return Ssse3.Shuffle(vector, Vector128<sbyte>.Zero);
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<ushort> BroadcastFirstElementUInt16(Vector128<ushort> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Ssse3.IsSupported)
+            {
+                return Ssse3.Shuffle(vector.AsByte(), Vector128<byte>.Indices & Vector128<byte>.One).AsUInt16();
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<short> BroadcastFirstElementInt16(Vector128<short> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Ssse3.IsSupported)
+            {
+                return Ssse3.Shuffle(vector.AsByte(), Vector128<byte>.Indices & Vector128<byte>.One).AsInt16();
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<uint> BroadcastFirstElementUInt32(Vector128<uint> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Sse2.IsSupported)
+            {
+                return Sse2.Shuffle(vector, 0);
+            }
+            if (Sse.IsSupported)
+            {
+                return Sse.Shuffle(vector.AsSingle(), vector.AsSingle(), 0).AsUInt32();
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<int> BroadcastFirstElementInt32(Vector128<int> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Sse2.IsSupported)
+            {
+                return Sse2.Shuffle(vector, 0);
+            }
+            if (Sse.IsSupported)
+            {
+                return Sse.Shuffle(vector.AsSingle(), vector.AsSingle(), 0).AsInt32();
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<float> BroadcastFirstElementSingle(Vector128<float> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Avx.IsSupported)
+            {
+                return Avx.Permute(vector, 0);
+            }
+            if (Sse.IsSupported)
+            {
+                return Sse.Shuffle(vector, vector, 0);
+            }
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<ulong> BroadcastFirstElementUInt64(Vector128<ulong> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Avx.IsSupported)
+            {
+                return Avx.Permute(vector.AsDouble(), 0).AsUInt64();
+            }
+            if (AdvSimd.Arm64.IsSupported)
+            {
+                return AdvSimd.Arm64.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<long> BroadcastFirstElementInt64(Vector128<long> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Avx.IsSupported)
+            {
+                return Avx.Permute(vector.AsDouble(), 0).AsInt64();
+            }
+            if (AdvSimd.Arm64.IsSupported)
+            {
+                return AdvSimd.Arm64.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        internal static Vector128<double> BroadcastFirstElementDouble(Vector128<double> vector)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.BroadcastScalarToVector128(vector);
+            }
+            if (Avx.IsSupported)
+            {
+                return Avx.Permute(vector, 0);
+            }
+            if (AdvSimd.Arm64.IsSupported)
+            {
+                return AdvSimd.Arm64.DuplicateSelectedScalarToVector128(vector, 0);
+            }
+            // Fallback
+            return Vector128.Create(vector.GetElement(0));
+        }
+
+        #endregion
+
     }
 }

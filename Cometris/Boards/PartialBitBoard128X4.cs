@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Cometris.Utils;
+using Cometris.Utils.Vector;
 
 using MikoMino.Boards;
 
@@ -34,26 +35,21 @@ namespace Cometris.Boards
 
         public const int EffectiveWidth = PartialBitBoard256X2.EffectiveWidth;
 
-        private readonly Vector128<ushort> storage0;
-        private readonly Vector128<ushort> storage1;
-        private readonly Vector128<ushort> storage2;
-        private readonly Vector128<ushort> storage3;
+        private readonly QuadVector128<ushort> storage;
+
+        public PartialBitBoard128X4(QuadVector128<ushort> storage)
+        {
+            this.storage = storage;
+        }
 
         public PartialBitBoard128X4(Vector128<ushort> storage0, Vector128<ushort> storage1, Vector128<ushort> storage2, Vector128<ushort> storage3)
         {
-            this.storage0 = storage0;
-            this.storage1 = storage1;
-            this.storage2 = storage2;
-            this.storage3 = storage3;
+            storage = new(storage0, storage1, storage2, storage3);
         }
 
         public PartialBitBoard128X4(ushort fill)
         {
-            var v0_8h = Vector128.Create(fill);
-            storage0 = v0_8h;
-            storage1 = v0_8h;
-            storage2 = v0_8h;
-            storage3 = v0_8h;
+            storage = QuadVector128.Create(fill);
         }
 
         public ushort this[int y]
@@ -63,18 +59,18 @@ namespace Cometris.Boards
                 if (AdvSimd.IsSupported)
                 {
                     var v0_4h = Vector64.Create((byte)(y * 2));
-                    return AdvSimd.VectorTableLookup((storage0.AsByte(), storage1.AsByte(), storage2.AsByte(), storage3.AsByte()), v0_4h).AsUInt16().GetElement(0);
+                    return AdvSimd.VectorTableLookup((Storage0.AsByte(), Storage1.AsByte(), Storage2.AsByte(), Storage3.AsByte()), v0_4h).AsUInt16().GetElement(0);
                 }
                 // Fallback
-                var storage = (y >> 3) switch
+                var s = (y >> 3) switch
                 {
-                    0 => storage0,
-                    1 => storage1,
-                    2 => storage2,
-                    _ => storage3,
+                    0 => Storage0,
+                    1 => Storage1,
+                    2 => Storage2,
+                    _ => Storage3,
                 };
                 y &= 7;
-                return storage.GetElementVariable(y);
+                return s.GetElementVariable(y);
             }
         }
 
@@ -92,15 +88,25 @@ namespace Cometris.Boards
         static int IBitBoard<PartialBitBoard128X4, ushort>.EffectiveWidth => EffectiveWidth;
 
         public static PartialBitBoard128X4 ZeroMask => new(0);
+
+        [SuppressMessage("Major Code Smell", "S1168:Empty arrays and collections should be returned instead of null", Justification = "Poor performance if applied")]
         public static PartialBitBoard128X4 Zero => default;
         public static PartialBitBoard128X4 AllBitsSetMask => new(ushort.MaxValue);
 
         public static PartialBitBoard128X4 AllBitsSet => new(ushort.MaxValue);
 
-        public void Deconstruct(out Vector128<ushort> storage0, out Vector128<ushort> storage1, out Vector128<ushort> storage2, out Vector128<ushort> storage3)
-            => (storage0, storage1, storage2, storage3) = (this.storage0, this.storage1, this.storage2, this.storage3);
+        public Vector128<ushort> Storage0 => storage.V0;
 
-        public static PartialBitBoard128X4 ClearClearableLines(PartialBitBoard128X4 board, ushort fill) => throw new NotImplementedException();
+        public Vector128<ushort> Storage1 => storage.V1;
+
+        public Vector128<ushort> Storage2 => storage.V2;
+
+        public Vector128<ushort> Storage3 => storage.V3;
+
+        public void Deconstruct(out Vector128<ushort> storage0, out Vector128<ushort> storage1, out Vector128<ushort> storage2, out Vector128<ushort> storage3)
+            => (storage0, storage1, storage2, storage3) = (Storage0, Storage1, Storage2, Storage3);
+
+        public static PartialBitBoard128X4 ClearClearableLines(PartialBitBoard128X4 board, ushort fill) => ClearClearableLines(board, fill, out _);
         public static PartialBitBoard128X4 CreateSingleBlock(int x, int y) => CreateSingleLine((ushort)(0x8000u >> x), y);
         public static ushort CreateSingleBlockLine(int x) => PartialBitBoard512.CreateSingleBlockLine(x);
         public static PartialBitBoard128X4 CreateSingleLine(ushort line, int y)
@@ -141,7 +147,30 @@ namespace Cometris.Boards
             var board = new PartialBitBoard128X4(Vector128.Create(0x8000, 0x8000, 0x8000, 0x8000, 0, 0, 0, 0), Vector128<ushort>.Zero, Vector128<ushort>.Zero, Vector128<ushort>.Zero);
             return ShiftUpVariableLines(board, y - 1, default);
         }
-        public static PartialBitBoard128X4 FillDropReachable(PartialBitBoard128X4 board, PartialBitBoard128X4 reached) => throw new NotImplementedException();
+        public static PartialBitBoard128X4 FillDropReachable(PartialBitBoard128X4 board, PartialBitBoard128X4 reached)
+        {
+            var b0 = board;
+            var r0 = reached;
+            var r1 = ShiftDownOneLine(r0, 0);
+            var b1 = ShiftDownOneLine(b0, 0);
+            r1 = Or1And02(r1, r0, b0);
+            b1 &= b0;
+            r0 = ShiftDownTwoLines(r1, 0);
+            b0 = ShiftDownTwoLines(b1, 0);
+            r0 = Or1And02(r0, r1, b1);
+            b0 &= b1;
+            r1 = ShiftDownFourLines(r0, 0);
+            b1 = ShiftDownFourLines(b0, 0);
+            r1 = Or1And02(r1, r0, b0);
+            b1 &= b0;
+            r0 = ShiftDownEightLines(r1, 0);
+            b0 = ShiftDownEightLines(b1, 0);
+            r0 = Or1And02(r0, r1, b1);
+            b0 &= b1;
+            r1 = ShiftDown16Lines(r0, 0);
+            r1 = Or1And02(r1, r0, b0);
+            return r1;
+        }
         public static PartialBitBoard128X4 FromBoard(ReadOnlySpan<ushort> board, ushort fill)
         {
             if (board.IsEmpty) return new(fill);
@@ -187,16 +216,23 @@ namespace Cometris.Boards
         public static int LocateAllBlocks(PartialBitBoard128X4 board, IBufferWriter<CompressedPositionsTuple> writer) => throw new NotImplementedException();
         public static PartialBitBoard128X4 ShiftDownOneLine(PartialBitBoard128X4 board, ushort upperFeedValue)
         {
-            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.storage0.AsByte(), board.storage1.AsByte(), board.storage2.AsByte(), board.storage3.AsByte());
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
             var v7_16b = Vector128.Create(upperFeedValue).AsByte();
-            if (AdvSimd.Arm64.IsSupported)
+            if (AdvSimd.IsSupported)
             {
-                var v8_16b = Vector128.Create((byte)2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
-                var v4_16b = AdvSimd.Arm64.VectorTableLookup((v0_16b, v1_16b), v8_16b);
-                var v5_16b = AdvSimd.Arm64.VectorTableLookup((v1_16b, v2_16b), v8_16b);
-                var v6_16b = AdvSimd.Arm64.VectorTableLookup((v2_16b, v3_16b), v8_16b);
-                v7_16b = AdvSimd.Arm64.VectorTableLookupExtension(v7_16b, v3_16b, v8_16b);
-                return new(v4_16b.AsUInt16(), v5_16b.AsUInt16(), v6_16b.AsUInt16(), v7_16b.AsUInt16());
+                v0_16b = AdvSimd.ExtractVector128(v1_16b, v0_16b, 2);
+                v1_16b = AdvSimd.ExtractVector128(v2_16b, v1_16b, 2);
+                v2_16b = AdvSimd.ExtractVector128(v3_16b, v2_16b, 2);
+                v3_16b = AdvSimd.ExtractVector128(v7_16b, v3_16b, 2);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+            else if (Sse41.IsSupported)
+            {
+                v0_16b = Ssse3.AlignRight(v1_16b, v0_16b, 2);
+                v1_16b = Ssse3.AlignRight(v2_16b, v1_16b, 2);
+                v2_16b = Ssse3.AlignRight(v3_16b, v2_16b, 2);
+                v3_16b = Ssse3.AlignRight(v7_16b, v3_16b, 2);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
             }
             else
             {
@@ -215,16 +251,23 @@ namespace Cometris.Boards
         }
         public static PartialBitBoard128X4 ShiftDownOneLine(PartialBitBoard128X4 board, PartialBitBoard128X4 upperFeedBoard)
         {
-            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.storage0.AsByte(), board.storage1.AsByte(), board.storage2.AsByte(), board.storage3.AsByte());
-            var v7_16b = upperFeedBoard.storage0.AsByte();
-            if (AdvSimd.Arm64.IsSupported)
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
+            var v7_16b = upperFeedBoard.Storage0.AsByte();
+            if (AdvSimd.IsSupported)
             {
-                var v8_16b = Vector128.Create((byte)2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
-                var v4_16b = AdvSimd.Arm64.VectorTableLookup((v0_16b, v1_16b), v8_16b);
-                var v5_16b = AdvSimd.Arm64.VectorTableLookup((v1_16b, v2_16b), v8_16b);
-                var v6_16b = AdvSimd.Arm64.VectorTableLookup((v2_16b, v3_16b), v8_16b);
-                v7_16b = AdvSimd.Arm64.VectorTableLookupExtension(v7_16b, v3_16b, v8_16b);
-                return new(v4_16b.AsUInt16(), v5_16b.AsUInt16(), v6_16b.AsUInt16(), v7_16b.AsUInt16());
+                v0_16b = AdvSimd.ExtractVector128(v1_16b, v0_16b, 2);
+                v1_16b = AdvSimd.ExtractVector128(v2_16b, v1_16b, 2);
+                v2_16b = AdvSimd.ExtractVector128(v3_16b, v2_16b, 2);
+                v3_16b = AdvSimd.ExtractVector128(v7_16b, v3_16b, 2);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+            else if (Sse41.IsSupported)
+            {
+                v0_16b = Ssse3.AlignRight(v1_16b, v0_16b, 2);
+                v1_16b = Ssse3.AlignRight(v2_16b, v1_16b, 2);
+                v2_16b = Ssse3.AlignRight(v3_16b, v2_16b, 2);
+                v3_16b = Ssse3.AlignRight(v7_16b, v3_16b, 2);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
             }
             else
             {
@@ -241,12 +284,100 @@ namespace Cometris.Boards
                 return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
             }
         }
+
+        public static PartialBitBoard128X4 ShiftDownTwoLines(PartialBitBoard128X4 board, ushort upperFeedValue)
+        {
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
+            var v7_16b = Vector128.Create(upperFeedValue).AsByte();
+            if (AdvSimd.IsSupported)
+            {
+                v0_16b = AdvSimd.ExtractVector128(v1_16b, v0_16b, 4);
+                v1_16b = AdvSimd.ExtractVector128(v2_16b, v1_16b, 4);
+                v2_16b = AdvSimd.ExtractVector128(v3_16b, v2_16b, 4);
+                v3_16b = AdvSimd.ExtractVector128(v7_16b, v3_16b, 4);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+            else if (Sse41.IsSupported)
+            {
+                v0_16b = Ssse3.AlignRight(v1_16b, v0_16b, 4);
+                v1_16b = Ssse3.AlignRight(v2_16b, v1_16b, 4);
+                v2_16b = Ssse3.AlignRight(v3_16b, v2_16b, 4);
+                v3_16b = Ssse3.AlignRight(v7_16b, v3_16b, 4);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+            else
+            {
+                var v8_16b = Vector128.Create((byte)4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3);
+                var v12_16b = Vector128.Create(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255);
+                v0_16b = VectorUtils.VectorTableLookup(v0_16b, v8_16b);
+                v1_16b = VectorUtils.VectorTableLookup(v1_16b, v8_16b);
+                v2_16b = VectorUtils.VectorTableLookup(v2_16b, v8_16b);
+                v3_16b = VectorUtils.VectorTableLookup(v3_16b, v8_16b);
+                v0_16b = VectorUtils.BlendVariable(v0_16b, v1_16b, v12_16b);
+                v1_16b = VectorUtils.BlendVariable(v1_16b, v2_16b, v12_16b);
+                v2_16b = VectorUtils.BlendVariable(v2_16b, v3_16b, v12_16b);
+                v3_16b = VectorUtils.BlendVariable(v3_16b, v7_16b, v12_16b);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+        }
+
+        public static PartialBitBoard128X4 ShiftDownFourLines(PartialBitBoard128X4 board, ushort upperFeedValue)
+        {
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
+            var v7_16b = Vector128.Create(upperFeedValue).AsByte();
+            const int BytesToShift = 8;
+            if (AdvSimd.IsSupported)
+            {
+                v0_16b = AdvSimd.ExtractVector128(v1_16b, v0_16b, BytesToShift);
+                v1_16b = AdvSimd.ExtractVector128(v2_16b, v1_16b, BytesToShift);
+                v2_16b = AdvSimd.ExtractVector128(v3_16b, v2_16b, BytesToShift);
+                v3_16b = AdvSimd.ExtractVector128(v7_16b, v3_16b, BytesToShift);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+            else if (Sse41.IsSupported)
+            {
+                v0_16b = Ssse3.AlignRight(v1_16b, v0_16b, BytesToShift);
+                v1_16b = Ssse3.AlignRight(v2_16b, v1_16b, BytesToShift);
+                v2_16b = Ssse3.AlignRight(v3_16b, v2_16b, BytesToShift);
+                v3_16b = Ssse3.AlignRight(v7_16b, v3_16b, BytesToShift);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+            else
+            {
+                var v8_16b = Vector128.Create((byte)8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7);
+                var v12_16b = Vector128.Create(0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 255, 255, 255, 255);
+                v0_16b = VectorUtils.VectorTableLookup(v0_16b, v8_16b);
+                v1_16b = VectorUtils.VectorTableLookup(v1_16b, v8_16b);
+                v2_16b = VectorUtils.VectorTableLookup(v2_16b, v8_16b);
+                v3_16b = VectorUtils.VectorTableLookup(v3_16b, v8_16b);
+                v0_16b = VectorUtils.BlendVariable(v0_16b, v1_16b, v12_16b);
+                v1_16b = VectorUtils.BlendVariable(v1_16b, v2_16b, v12_16b);
+                v2_16b = VectorUtils.BlendVariable(v2_16b, v3_16b, v12_16b);
+                v3_16b = VectorUtils.BlendVariable(v3_16b, v7_16b, v12_16b);
+                return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+            }
+        }
+
+        public static PartialBitBoard128X4 ShiftDownEightLines(PartialBitBoard128X4 board, ushort upperFeedValue)
+        {
+            var (v0_16b, v1_16b, v2_16b) = (board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
+            var v3_16b = Vector128.Create(upperFeedValue).AsByte();
+            return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v2_16b.AsUInt16(), v3_16b.AsUInt16());
+        }
+
+        public static PartialBitBoard128X4 ShiftDown16Lines(PartialBitBoard128X4 board, ushort upperFeedValue)
+        {
+            var (v0_16b, v1_16b) = (board.Storage2.AsByte(), board.Storage3.AsByte());
+            var v3_16b = Vector128.Create(upperFeedValue).AsByte();
+            return new(v0_16b.AsUInt16(), v1_16b.AsUInt16(), v3_16b.AsUInt16(), v3_16b.AsUInt16());
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static PartialBitBoard128X4 ShiftDownVariableLines(PartialBitBoard128X4 board, int count, ushort upperFeedValue)
         {
             count &= 31;
             var v8_16b = Vector128.Create((byte)(count * 2));
-            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.storage0.AsByte(), board.storage1.AsByte(), board.storage2.AsByte(), board.storage3.AsByte());
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
             var v7_16b = Vector128.Create(upperFeedValue).AsByte();
             if (AdvSimd.Arm64.IsSupported)
             {
@@ -289,7 +420,7 @@ namespace Cometris.Boards
         }
         public static PartialBitBoard128X4 ShiftUpOneLine(PartialBitBoard128X4 board, ushort lowerFeedValue)
         {
-            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.storage0.AsByte(), board.storage1.AsByte(), board.storage2.AsByte(), board.storage3.AsByte());
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
             var v4_16b = Vector128.Create(lowerFeedValue).AsByte();
             if (AdvSimd.Arm64.IsSupported)
             {
@@ -317,8 +448,8 @@ namespace Cometris.Boards
         }
         public static PartialBitBoard128X4 ShiftUpOneLine(PartialBitBoard128X4 board, PartialBitBoard128X4 lowerFeedBoard)
         {
-            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.storage0.AsByte(), board.storage1.AsByte(), board.storage2.AsByte(), board.storage3.AsByte());
-            var v4_16b = lowerFeedBoard.storage0.AsByte();
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
+            var v4_16b = lowerFeedBoard.Storage0.AsByte();
             if (AdvSimd.Arm64.IsSupported)
             {
                 var v8_16b = Vector128.Create((byte)14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29);
@@ -348,8 +479,8 @@ namespace Cometris.Boards
         {
             count &= 31;
             var v8_16b = Vector128.Create((byte)(count * 2));
-            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.storage0.AsByte(), board.storage1.AsByte(), board.storage2.AsByte(), board.storage3.AsByte());
-            var (v4_16b, v5_16b, v6_16b, v7_16b) = (lowerFeedBoard.storage0.AsByte(), lowerFeedBoard.storage1.AsByte(), lowerFeedBoard.storage2.AsByte(), lowerFeedBoard.storage3.AsByte());
+            var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());
+            var (v4_16b, v5_16b, v6_16b, v7_16b) = (lowerFeedBoard.Storage0.AsByte(), lowerFeedBoard.Storage1.AsByte(), lowerFeedBoard.Storage2.AsByte(), lowerFeedBoard.Storage3.AsByte());
             if (AdvSimd.Arm64.IsSupported)
             {
                 var v9_16b = Vector128.Create((byte)16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31) - v8_16b;
@@ -390,18 +521,18 @@ namespace Cometris.Boards
         }
         public static void StoreUnsafe(PartialBitBoard128X4 board, ref ushort destination, nint elementOffset)
         {
-            board.storage0.StoreUnsafe(ref destination, (nuint)elementOffset + 0 * (nuint)Vector128<ushort>.Count);
-            board.storage1.StoreUnsafe(ref destination, (nuint)elementOffset + 1 * (nuint)Vector128<ushort>.Count);
-            board.storage2.StoreUnsafe(ref destination, (nuint)elementOffset + 2 * (nuint)Vector128<ushort>.Count);
-            board.storage3.StoreUnsafe(ref destination, (nuint)elementOffset + 3 * (nuint)Vector128<ushort>.Count);
+            board.Storage0.StoreUnsafe(ref destination, (nuint)elementOffset + 0 * (nuint)Vector128<ushort>.Count);
+            board.Storage1.StoreUnsafe(ref destination, (nuint)elementOffset + 1 * (nuint)Vector128<ushort>.Count);
+            board.Storage2.StoreUnsafe(ref destination, (nuint)elementOffset + 2 * (nuint)Vector128<ushort>.Count);
+            board.Storage3.StoreUnsafe(ref destination, (nuint)elementOffset + 3 * (nuint)Vector128<ushort>.Count);
         }
 
         public static void StoreUnsafe(PartialBitBoard128X4 board, ref ushort destination, nuint elementOffset = 0U)
         {
-            board.storage0.StoreUnsafe(ref destination, elementOffset + 0 * (nuint)Vector128<ushort>.Count);
-            board.storage1.StoreUnsafe(ref destination, elementOffset + 1 * (nuint)Vector128<ushort>.Count);
-            board.storage2.StoreUnsafe(ref destination, elementOffset + 2 * (nuint)Vector128<ushort>.Count);
-            board.storage3.StoreUnsafe(ref destination, elementOffset + 3 * (nuint)Vector128<ushort>.Count);
+            board.Storage0.StoreUnsafe(ref destination, elementOffset + 0 * (nuint)Vector128<ushort>.Count);
+            board.Storage1.StoreUnsafe(ref destination, elementOffset + 1 * (nuint)Vector128<ushort>.Count);
+            board.Storage2.StoreUnsafe(ref destination, elementOffset + 2 * (nuint)Vector128<ushort>.Count);
+            board.Storage3.StoreUnsafe(ref destination, elementOffset + 3 * (nuint)Vector128<ushort>.Count);
         }
 
         public static int TotalBlocks(PartialBitBoard128X4 board)
@@ -409,10 +540,10 @@ namespace Cometris.Boards
             var v15_16b = Vector128.Create((byte)0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
             var v14_16b = Vector128.Create((byte)0x0f).AsUInt16();
             var v13_16b = Vector128.Create((ushort)0xff);
-            var v0_8h = board.storage0;
-            var v1_8h = board.storage1;
-            var v2_8h = board.storage2;
-            var v3_8h = board.storage3;
+            var v0_8h = board.Storage0;
+            var v1_8h = board.Storage1;
+            var v2_8h = board.Storage2;
+            var v3_8h = board.Storage3;
             var v4_8h = v0_8h >> 4;
             var v5_8h = v1_8h >> 4;
             var v6_8h = v2_8h >> 4;
@@ -470,10 +601,10 @@ namespace Cometris.Boards
             var v12_8h = Vector128.Create((ushort)24, 25, 26, 27, 28, 29, 30, 31);
             var v8_8h = Vector128.Create(line);
             var v9_8h = Vector128.Create((ushort)y);
-            var v0_8h = storage0;
-            var v1_8h = storage1;
-            var v2_8h = storage2;
-            var v3_8h = storage3;
+            var v0_8h = Storage0;
+            var v1_8h = Storage1;
+            var v2_8h = Storage2;
+            var v3_8h = Storage3;
             var v4_8h = Vector128.Equals(v15_8h, v9_8h);
             var v5_8h = Vector128.Equals(v14_8h, v9_8h);
             var v6_8h = Vector128.Equals(v13_8h, v9_8h);
@@ -514,15 +645,15 @@ namespace Cometris.Boards
             return r0;
         }
 
-        public override int GetHashCode() => HashCode.Combine(storage0, storage1, storage2, storage3);
+        public override int GetHashCode() => HashCode.Combine(Storage0, Storage1, Storage2, Storage3);
         public override bool Equals(object? obj) => obj is PartialBitBoard128X4 board && Equals(board);
-        public bool Equals(PartialBitBoard128X4 other) => storage0.Equals(other.storage0) && storage1.Equals(other.storage1) && storage2.Equals(other.storage2) && storage3.Equals(other.storage3);
+        public bool Equals(PartialBitBoard128X4 other) => Storage0.Equals(other.Storage0) && Storage1.Equals(other.Storage1) && Storage2.Equals(other.Storage2) && Storage3.Equals(other.Storage3);
 
         public static int TrailingZeroCount(uint mask) => BitOperations.TrailingZeroCount(mask);
         public static int PopCount(uint mask) => BitOperations.PopCount(mask);
         public static uint CompressMask(PartialBitBoard128X4 mask)
         {
-            var (v0_8h, v1_8h, v2_8h, v3_8h) = (mask.storage0, mask.storage1, mask.storage2, mask.storage3);
+            var (v0_8h, v1_8h, v2_8h, v3_8h) = (mask.Storage0, mask.Storage1, mask.Storage2, mask.Storage3);
             var m3 = v3_8h.ExtractMostSignificantBits() << 24;
             var m2 = v2_8h.ExtractMostSignificantBits() << 16;
             var m1 = v1_8h.ExtractMostSignificantBits() << 8;
@@ -540,24 +671,49 @@ namespace Cometris.Boards
             clearedLines = l;
             return ClearLines(board, fill, l);
         }
-        public static PartialBitBoard128X4 ClearLines(PartialBitBoard128X4 board, ushort fill, PartialBitBoard128X4 lines) => throw new NotImplementedException();
+
+        public static PartialBitBoard128X4 ClearLines(PartialBitBoard128X4 board, ushort fill, PartialBitBoard128X4 lines)
+        {
+            //var v0_32h = board.AsQuadVector128();
+            //var v1_32h = lines.AsQuadVector128();
+            //var v2_32h = v1_32h & Vector128.Create((ushort)2);
+            //var v3_32h = QuadVector128.ShiftRightLogical(v2_32h.AsUInt32(), 16).AsUInt16();
+            //var v4_64b = QuadVector128.ShuffleBytesPerLane(v2_32h.AsByte(), Vector128.Create((byte)0, 0, 0, 0, 4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12)) + Vector128<byte>.Indices;
+            //var v5_32h = QuadVector128.CompareLessThan(v4_64b.AsSByte(), Vector128.Create(4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12, 16, 16, 16, 16)).AsUInt16();
+            //v2_32h += v3_32h;
+            //v0_32h = QuadVector128.ShuffleBytesPerLane(v0_32h.AsByte(), v4_64b).AsUInt16() & v5_32h;
+            //v3_32h = QuadVector128.ShiftRightLogical(v2_32h.AsUInt64(), 32).AsUInt16();
+            //v4_64b = QuadVector128.ShuffleBytesPerLane(v2_32h.AsByte(), Vector128.Create((byte)0, 0, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8, 8)) + Vector128<byte>.Indices;
+            //v5_32h = QuadVector128.CompareLessThan(v4_64b.AsSByte(), Vector128.Create(8, 8, 8, 8, 8, 8, 8, 8, 16, 16, 16, 16, 16, 16, 16, 16)).AsUInt16();
+            //v2_32h += v3_32h;
+            //v0_32h = QuadVector128.ShuffleBytesPerLane(v0_32h.AsByte(), v4_64b).AsUInt16() & v5_32h;
+            throw new NotImplementedException();
+        }
+
         public static bool IsSetAt(PartialBitBoard128X4 mask, byte index) => ((CompressMask(mask) >> index) & 1) > 0;
         public static PartialBitBoard128X4 CreateMaskFromBoard(PartialBitBoard128X4 board) => board;
         public static PartialBitBoard128X4 MaskUnaryNegation(PartialBitBoard128X4 mask) => ~mask;
         public static PartialBitBoard128X4 MaskAnd(PartialBitBoard128X4 left, PartialBitBoard128X4 right) => left & right;
         public static PartialBitBoard128X4 MaskOr(PartialBitBoard128X4 left, PartialBitBoard128X4 right) => left | right;
         public static PartialBitBoard128X4 MaskXor(PartialBitBoard128X4 left, PartialBitBoard128X4 right) => left ^ right;
+
+        #region Operator Supplement
+        public static PartialBitBoard128X4 Or1And02(PartialBitBoard128X4 b0, PartialBitBoard128X4 b1, PartialBitBoard128X4 b2) => b1 | (b0 & b2);
+        #endregion
+
         public static ulong CalculateHash(PartialBitBoard128X4 board, ulong key = 0) => throw new NotImplementedException();
+
+        public QuadVector128<ushort> AsQuadVector128() => storage;
 
         [SkipLocalsInit]
         private string GetDebuggerDisplay()
         {
             Span<ushort> lines = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             ref var x8 = ref MemoryMarshal.GetReference(lines);
-            storage0.StoreUnsafe(ref x8, 0 * (nuint)Vector128<ushort>.Count);
-            storage1.StoreUnsafe(ref x8, 1 * (nuint)Vector128<ushort>.Count);
-            storage2.StoreUnsafe(ref x8, 2 * (nuint)Vector128<ushort>.Count);
-            storage3.StoreUnsafe(ref x8, 3 * (nuint)Vector128<ushort>.Count);
+            Storage0.StoreUnsafe(ref x8, 0 * (nuint)Vector128<ushort>.Count);
+            Storage1.StoreUnsafe(ref x8, 1 * (nuint)Vector128<ushort>.Count);
+            Storage2.StoreUnsafe(ref x8, 2 * (nuint)Vector128<ushort>.Count);
+            Storage3.StoreUnsafe(ref x8, 3 * (nuint)Vector128<ushort>.Count);
             var sb = new StringBuilder(Environment.NewLine);
             sb.AppendSquareDisplay(lines);
             return sb.ToString();

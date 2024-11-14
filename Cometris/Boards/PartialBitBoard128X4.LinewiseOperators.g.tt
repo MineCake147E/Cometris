@@ -17,7 +17,12 @@ var operators = new (string name, (string type, string name, bool isBoard)[] arg
     ("<<", [(BoardType, "left", true), ("[ConstantExpected] int", "right", false)]),
     (">>", [(BoardType, "left", true), ("[ConstantExpected] int", "right", false)]),
 };
-var storages = Enumerable.Range(0, 4).Select(a => $"storage{a}").ToArray();
+string GenerateQuadVectorOperations((string type, string name, bool isBoard)[] arguments, string format)
+{
+    var argFields = arguments.Select(a => a.isBoard ? $"{a.name}.storage" : $"{a.name}");
+    return string.Format(format, argFields.ToArray());
+}
+var storages = Enumerable.Range(0, 4).Select(a => $"Storage{a}").ToArray();
 IEnumerable<string> GenerateSimpleOperations((string type, string name, bool isBoard)[] arguments, string format)
 {
     var argFields = storages.Select(b => arguments.Select(a => a.isBoard ? $"{a.name}.{b}" : $"{a.name}"));
@@ -40,6 +45,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using Cometris.Utils;
+using Cometris.Utils.Vector;
 
 namespace Cometris.Boards
 {
@@ -48,20 +54,20 @@ namespace Cometris.Boards
         #region Operator Overloads
 <#  foreach(var o in operators){#>
         public static PartialBitBoard128X4 operator <#=o.name#>(<#=string.Join(", ", o.arguments.Select(a => $"{a.type} {a.name}"))#>)
-            => new(<#=string.Join(", ", GenerateSimpleOperations(o.arguments, $"{{0}} {o.name} {{1}}"))#>);
+            => new(<#=string.Join(", ", GenerateQuadVectorOperations(o.arguments, $"{{0}} {o.name} {{1}}"))#>);
         
 <#  }#>
         public static PartialBitBoard128X4 operator ~(PartialBitBoard128X4 value)
-            => new(<#=string.Join(", ", GenerateSimpleOperations([(BoardType, "value", true)], "~{0}"))#>);
+            => new(<#=string.Join(", ", GenerateQuadVectorOperations([(BoardType, "value", true)], "~{0}"))#>);
         #endregion
 
         public static PartialBitBoard128X4 BlocksPerLine(PartialBitBoard128X4 board)
             => new(<#=string.Join(", ", GenerateSimpleOperations([(BoardType, "board", true)], "VectorUtils.PopCountPerLine({0})"))#>);
 
         public static PartialBitBoard128X4 LineSelect(PartialBitBoard128X4 mask, PartialBitBoard128X4 left, PartialBitBoard128X4 right)
-            => new(<#=string.Join(", ", GenerateSimpleOperations([(BoardType, "mask", true), (BoardType, "left", true), (BoardType, "right", true)], "VectorUtils.BlendVariable({1}, {2}, {0})"))#>);
+            => new(<#=string.Join(", ", GenerateQuadVectorOperations([(BoardType, "mask", true), (BoardType, "left", true), (BoardType, "right", true)], "QuadVector128.ConditionalSelect({0}, {1}, {2})"))#>);
 
         public static PartialBitBoard128X4 CompareEqualPerLineVector(PartialBitBoard128X4 left, PartialBitBoard128X4 right)
-            => new(<#=string.Join(", ", GenerateSimpleOperations([(BoardType, "left", true), (BoardType, "right", true)], "Vector128.Equals({0}, {1})"))#>);
+            => new(<#=string.Join(", ", GenerateQuadVectorOperations([(BoardType, "left", true), (BoardType, "right", true)], "QuadVector128.CompareEqual({0}, {1})"))#>);
     }
 }
