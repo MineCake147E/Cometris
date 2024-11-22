@@ -108,6 +108,49 @@ namespace Cometris.Utils
         }
 
         #region Arithmetics
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<byte> AddSaturate(Vector128<byte> left, Vector128<byte> right)
+        {
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.AddSaturate(left, right);
+            }
+            if (PackedSimd.IsSupported)
+            {
+                return PackedSimd.AddSaturate(left, right);
+            }
+            if (Sse2.IsSupported)
+            {
+                return Sse2.AddSaturate(left, right);
+            }
+            var v0_16b = left + right;
+            var v1_16b = Vector128.LessThan(v0_16b, left);
+            v0_16b |= v1_16b;
+            return v0_16b;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector128<byte> SubtractSaturate(Vector128<byte> left, Vector128<byte> right)
+        {
+            if (AdvSimd.IsSupported)
+            {
+                return AdvSimd.SubtractSaturate(left, right);
+            }
+            if (PackedSimd.IsSupported)
+            {
+                return PackedSimd.SubtractSaturate(left, right);
+            }
+            if (Sse2.IsSupported)
+            {
+                return Sse2.SubtractSaturate(left, right);
+            }
+            var v0_16b = left - right;
+            var v1_16b = Vector128.LessThanOrEqual(v0_16b, left);
+            v0_16b &= v1_16b;
+            return v0_16b;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector128<ushort> MultiplyAdd(Vector128<ushort> addend, Vector128<ushort> left, Vector128<ushort> right)
             => AdvSimd.IsSupported ? AdvSimd.MultiplyAdd(addend, left, right) : addend + left * right;
@@ -207,6 +250,40 @@ namespace Cometris.Utils
             }
             // Fallback
             return Vector128.Narrow(vector, vector);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint MinAcrossLower(Vector128<byte> vector)
+        {
+            var v0_16b = vector;
+            if (Sse41.IsSupported)
+            {
+                var xmm0 = Sse41.ConvertToVector128Int16(v0_16b).AsUInt16();
+                xmm0 = Sse41.MinHorizontal(xmm0);
+                return xmm0.GetElement(0);
+            }
+            else if (AdvSimd.Arm64.IsSupported)
+            {
+                return AdvSimd.Arm64.MinAcross(v0_16b.GetLower()).GetElement(0);
+            }
+            else if (AdvSimd.IsSupported)
+            {
+                var v0_8b = v0_16b.GetLower();
+                v0_8b = AdvSimd.MinPairwise(v0_8b, v0_8b);
+                v0_8b = AdvSimd.MinPairwise(v0_8b, v0_8b);
+                v0_8b = AdvSimd.MinPairwise(v0_8b, v0_8b);
+                return v0_8b.GetElement(0);
+            }
+            else
+            {
+                var v1_16b = v0_16b.AsUInt64() >> 32;
+                var v2_16b = Vector128.Min(v0_16b, v1_16b.AsByte());
+                v1_16b = v2_16b.AsUInt64() >> 16;
+                v2_16b = Vector128.Min(v2_16b, v1_16b.AsByte());
+                v1_16b = v2_16b.AsUInt64() >> 8;
+                v2_16b = Vector128.Min(v2_16b, v1_16b.AsByte());
+                return v2_16b.GetElement(0);
+            }
         }
 
         #endregion

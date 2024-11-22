@@ -29,28 +29,14 @@ namespace Cometris.Benchmarks.Pieces.Permutation
         }
 
         [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
-        public uint CalculatePermutationBmi2()
+        public uint CalculatePermutation()
         {
             var s = id;
             var res = 0u;
             for (int i = 0; i < OperationsPerInvoke; i++)
             {
-                res = PiecePermutationUtils.CalculatePermutationBmi2((ushort)s);
-                s = IncrementId(s, (res & 1) + 1);
-            }
-            id = s;
-            return res;
-        }
-
-        [Benchmark(OperationsPerInvoke = OperationsPerInvoke)]
-        public uint CalculatePermutationFallback()
-        {
-            var s = id;
-            var res = 0u;
-            for (int i = 0; i < OperationsPerInvoke; i++)
-            {
-                res = PiecePermutationUtils.CalculatePermutationFallback((ushort)s);
-                s = IncrementId(s, (res & 1) + 1);
+                res = PiecePermutationUtils.CalculatePermutation((ushort)s);
+                s = IncrementId(s, (res & 4095) + 1);
             }
             id = s;
             return res;

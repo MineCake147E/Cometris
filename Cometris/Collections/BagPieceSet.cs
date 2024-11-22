@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -14,6 +14,7 @@ using Cometris.Pieces.Counting;
 
 using Cometris.Pieces;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.Arm;
 
 namespace Cometris.Collections
 {
@@ -43,6 +44,24 @@ namespace Cometris.Collections
             }
         }
 
+        public BagPieceSet(PieceCountTuple countTuple)
+        {
+            if (Vector64.IsHardwareAccelerated)
+            {
+                var v0_8b = Vector64.CreateScalarUnsafe(countTuple.GetInternalValue()).AsByte();
+                v0_8b = Vector64.Equals(v0_8b, Vector64<byte>.Zero);
+                this = new((CombinablePieces)~v0_8b.ExtractMostSignificantBits() & CombinablePieces.All);
+                return;
+            }
+            if (Vector128.IsHardwareAccelerated || Sse2.IsSupported)
+            {
+                var v0_16b = Vector128.CreateScalarUnsafe(countTuple.GetInternalValue()).AsByte();
+                v0_16b = Vector128.Equals(v0_16b, Vector128<byte>.Zero);
+                this = new((CombinablePieces)~v0_16b.ExtractMostSignificantBits() & CombinablePieces.All);
+                return;
+            }
+        }
+
         public static BagPieceSet Create<TEnumerable>(TEnumerable pieces) where TEnumerable : IEnumerable<Piece>, allows ref struct
         {
             var m = CombinablePieces.None;
@@ -51,18 +70,6 @@ namespace Cometris.Collections
                 m |= piece.ToFlag();
             }
             return new(m);
-        }
-
-        //public BagPieceSetChoiceEnumerable CreateChoiceEnumerable() => new(new(Value));
-
-        public static BagPieceSet CreateCountFrom(PieceCountTuple countTuple)
-        {
-            var v0_8b = Vector128.CreateScalar(countTuple.GetInternalValue()).AsByte();
-            v0_8b = Vector128.GreaterThan(v0_8b, Vector128<byte>.Zero);
-            v0_8b &= Vector128.Create(0, 1, 2, 4, 8, 16, 32, 64, 0, 0, 0, 0, 0, 0, 0, byte.MinValue);
-            return Sse2.IsSupported
-                ? new((CombinablePieces)Sse2.SumAbsoluteDifferences(v0_8b, Vector128<byte>.Zero).AsByte().GetElement(0))
-                : new((CombinablePieces)Vector128.Sum(v0_8b));
         }
 
         public BagPieceSetEnumerator GetEnumerator() => new(Value);
@@ -141,23 +148,7 @@ namespace Cometris.Collections
 
         public static explicit operator CombinablePieces(BagPieceSet pieces) => pieces.Value;
 
-        public static explicit operator PieceCountTuple(BagPieceSet pieces)
-        {
-            if (Bmi2.X64.IsSupported)
-            {
-                var m = (ulong)pieces.Value;
-                return new(BitConverter.UInt64BitsToDouble(Bmi2.X64.ParallelBitDeposit(m, 0x0101_0101_0101_0100ul)));
-            }
-            else
-            {
-                var k = new PieceCountTuple();
-                foreach (var item in pieces)
-                {
-                    k = k.AddPieces(item);
-                }
-                return k;
-            }
-        }
+        public static explicit operator PieceCountTuple(BagPieceSet pieces) => new(pieces);
 
         private string GetDebuggerDisplay() => $"{Value}";
 

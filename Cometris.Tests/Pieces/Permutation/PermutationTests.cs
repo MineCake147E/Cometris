@@ -42,7 +42,7 @@ namespace Cometris.Tests.Pieces.Permutation
         [Test]
         public void CreatePermutationCreatesCorrectly()
         {
-            ReadOnlySpan<Piece> pieces = [Piece.T, Piece.I, Piece.O, Piece.J, Piece.L, Piece.S, Piece.Z];
+            var pieces = PiecesUtils.AllValidPieces;
             Piece[] bag = [default, default, default, default, default, default, default];
             for (uint i = 0; i < 5040; i++)
             {
@@ -55,36 +55,17 @@ namespace Cometris.Tests.Pieces.Permutation
         }
 
         [Test]
-        public void CalculatePermutationFallbackCalculatesCorrectly()
+        public void CalculatePermutationCalculatesCorrectly()
         {
-            ReadOnlySpan<Piece> pieces = [Piece.T, Piece.I, Piece.O, Piece.J, Piece.L, Piece.S, Piece.Z];
+            var pieces = PiecesUtils.AllValidPieces;
             Piece[] bag = [default, default, default, default, default, default, default];
+            var bagSpan = bag.AsSpan();
             for (uint i = 0; i < 5040; i++)
             {
                 var id = (ushort)i;
-                pieces.CopyTo(bag);
-                PermuteBag(bag, id);
-                var k = CompressedPieceList.Create(PiecePermutationUtils.CalculatePermutationFallback(id));
-                Assert.That(k, Is.EqualTo(bag), $"Testing {id}th permutation");
-            }
-        }
-
-        [Test]
-        public void CalculatePermutationBmi2CalculatesCorrectly()
-        {
-            if (!Bmi2.IsSupported)
-            {
-                Assert.Ignore("Bmi2 is not supported in this environment!");
-                return;
-            }
-            ReadOnlySpan<Piece> pieces = [Piece.T, Piece.I, Piece.O, Piece.J, Piece.L, Piece.S, Piece.Z];
-            Piece[] bag = [default, default, default, default, default, default, default];
-            for (uint i = 0; i < 5040; i++)
-            {
-                var id = (ushort)i;
-                pieces.CopyTo(bag);
-                PermuteBag(bag, id);
-                var k = CompressedPieceList.Create(PiecePermutationUtils.CalculatePermutationBmi2(id));
+                pieces.CopyTo(bagSpan);
+                PermuteBag(bagSpan, id);
+                var k = CompressedPieceList.Create(PiecePermutationUtils.CalculatePermutation(id));
                 Assert.That(k, Is.EqualTo(bag), $"Testing {id}th permutation");
             }
         }

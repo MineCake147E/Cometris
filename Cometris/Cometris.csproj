@@ -35,7 +35,6 @@
       <Folder Include="Boards\Storage\" />
       <Folder Include="Intelligence\Graph\Bag\" />
       <Folder Include="Intelligence\Graph\Indexing\" />
-      <Folder Include="Utils\Collections\" />
     </ItemGroup>
 
     

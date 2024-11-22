@@ -1,6 +1,8 @@
-﻿using System;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Numerics;
@@ -12,16 +14,40 @@ using System.Runtime.Intrinsics.X86;
 using System.Text;
 using System.Threading.Tasks;
 
+using Cometris.Collections;
+using Cometris.Utils;
+
 namespace Cometris.Pieces.Counting
 {
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
-    public readonly struct PieceCountTuple : IEquatable<PieceCountTuple>
+    public readonly struct PieceCountTuple : IEquatable<PieceCountTuple>, IReadOnlyDictionary<Piece, byte>
     {
         private readonly double medium;
 
         public ulong Value => BitConverter.DoubleToUInt64Bits(medium);
 
         public ulong MaskedValue => Value & ~0xfful;
+
+        [SuppressMessage("Major Code Smell", "S1168:Empty arrays and collections should be returned instead of null", Justification = "<Pending>")]
+        public static PieceCountTuple Zero => default;
+
+        IEnumerable<Piece> IReadOnlyDictionary<Piece, byte>.Keys => [.. PiecesUtils.AllPieces];
+        IEnumerable<byte> IReadOnlyDictionary<Piece, byte>.Values
+        {
+            get
+            {
+                var k = this;
+                return Enumerable.Select([.. PiecesUtils.AllPieces], a => k[a]);
+            }
+        }
+
+        public int Count => 8;
+        #region Constructors and Create methods
+
+        public PieceCountTuple(byte countForAllPieces)
+        {
+            this = new(Vector128.Create(countForAllPieces));
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PieceCountTuple(Piece initialPiece, byte count = 1)
@@ -49,16 +75,74 @@ namespace Cometris.Pieces.Counting
             this.medium = medium.AsDouble().GetElement(0);
         }
 
-        public static PieceCountTuple CreateCountFrom<TEnumerable>(TEnumerable pieces) where TEnumerable : IEnumerable<Piece>
+        public PieceCountTuple(BagPieceSet pieces)
+        {
+            if (Bmi2.X64.IsSupported)
+            {
+                var m = (ulong)pieces.Value;
+                medium = BitConverter.UInt64BitsToDouble(Bmi2.X64.ParallelBitDeposit(m, 0x0101_0101_0101_0100ul));
+            }
+            else if (Vector64.IsHardwareAccelerated)
+            {
+                var v0_16b = Vector64.Create((byte)pieces.Value);
+                v0_16b &= Vector64.Create(0, 1, 2, 4, 8, 16, 32, 64).AsByte();
+                medium = Vector64.Min(Vector64<byte>.One, v0_16b).AsDouble().GetElement(0);
+            }
+            else if (Vector128.IsHardwareAccelerated)
+            {
+                var v0_16b = Vector128.Create((byte)pieces.Value);
+                v0_16b &= Vector128.Create(0, 1, 2, 4, 8, 16, 32, 64, 0, 0, 0, 0, 0, 0, 0, 0).AsByte();
+                medium = Vector128.Min(Vector128<byte>.One, v0_16b).AsDouble().GetElement(0);
+            }
+            else
+            {
+                this = CreateCountFrom(pieces);
+            }
+        }
+
+        [OverloadResolutionPriority(1)]
+        public static PieceCountTuple CreateCountFrom(ReadOnlySpan<Piece> pieces)
         {
             var m = new PieceCountTuple();
             foreach (var item in pieces)
             {
-                m = m.AddPieces(item);
+                m = m.Add(item);
             }
             return m;
         }
 
+        public static PieceCountTuple CreateCountFrom<TEnumerable>(TEnumerable pieces) where TEnumerable : IEnumerable<Piece>, allows ref struct
+        {
+            var m = new PieceCountTuple();
+            foreach (var item in pieces)
+            {
+                m = m.Add(item);
+            }
+            return m;
+        }
+
+        [OverloadResolutionPriority(1)]
+        public static PieceCountTuple CreateSaturatedCountFrom(ReadOnlySpan<Piece> pieces)
+        {
+            var m = new PieceCountTuple();
+            foreach (var item in pieces)
+            {
+                m = m.AddSaturate(item);
+            }
+            return m;
+        }
+
+        public static PieceCountTuple CreateSaturatedCountFrom<TEnumerable>(TEnumerable pieces) where TEnumerable : IEnumerable<Piece>, allows ref struct
+        {
+            var m = new PieceCountTuple();
+            foreach (var item in pieces)
+            {
+                m = m.AddSaturate(item);
+            }
+            return m;
+        }
+
+        #endregion
         public byte this[Piece piece]
         {
             get
@@ -69,7 +153,7 @@ namespace Cometris.Pieces.Counting
             }
         }
 
-        public readonly PieceCountTuple AddPieces(Piece piece, sbyte count = 1)
+        public PieceCountTuple Add(Piece piece, sbyte count = 1)
         {
             var x8 = (byte)piece * 8;
             var x9 = (ulong)(byte)count << x8;
@@ -78,52 +162,36 @@ namespace Cometris.Pieces.Counting
             return new(v0_8b + v1_8b);
         }
 
-        public readonly PieceCountTuple WithPiece(Piece piece, sbyte count)
+        public PieceCountTuple AddSaturate(Piece piece, byte count = 1)
+            => AddSaturate(this, new(piece, count));
+
+        public PieceCountTuple WithPiece(Piece piece, byte count)
         {
             var v0_8b = Vector128.CreateScalarUnsafe(medium).AsByte();
             var v1_8b = Vector128.Create((byte)piece);
-            var v2_8b = Vector128.Create((byte)count);
             v1_8b = Vector128.Equals(v1_8b, Vector128<byte>.Indices);
-            return new(Vector128.ConditionalSelect(v1_8b, v2_8b, v0_8b));
+            return new(Vector128.ConditionalSelect(v1_8b, Vector128.Create(count), v0_8b));
+        }
+
+        public uint CalculateMinimumCount()
+        {
+            var v0_16b = Vector128.CreateScalarUnsafe(medium).AsByte();
+            v0_16b |= Vector128.CreateScalar(byte.MaxValue);
+            return VectorUtils.MinAcrossLower(v0_16b);
         }
 
         public PieceCountTuple RemoveMinimum()
         {
             var v0_16b = Vector128.CreateScalarUnsafe(medium).AsByte();
             v0_16b |= Vector128.CreateScalar(byte.MaxValue);
-            int min;
-            if (Sse41.IsSupported)
-            {
-                var xmm0 = Sse41.ConvertToVector128Int16(v0_16b).AsUInt16();
-                xmm0 = Sse41.MinHorizontal(xmm0);
-                min = xmm0.GetElement(0);
-            }
-            else if (AdvSimd.Arm64.IsSupported)
-            {
-                min = AdvSimd.Arm64.MinAcross(v0_16b).GetElement(0);
-            }
-            else if (AdvSimd.IsSupported)
-            {
-                var v0_8b = v0_16b.GetLower();
-                v0_8b = AdvSimd.MinPairwise(v0_8b, v0_8b);
-                v0_8b = AdvSimd.MinPairwise(v0_8b, v0_8b);
-                v0_8b = AdvSimd.MinPairwise(v0_8b, v0_8b);
-                min = v0_8b.GetElement(0);
-            }
-            else
-            {
-                var v1_16b = v0_16b.AsUInt64() >> 32;
-                var v2_16b = Vector128.Min(v0_16b, v1_16b.AsByte());
-                v1_16b = v2_16b.AsUInt64() >> 16;
-                v2_16b = Vector128.Min(v2_16b, v1_16b.AsByte());
-                v1_16b = v2_16b.AsUInt64() >> 8;
-                v2_16b = Vector128.Min(v2_16b, v1_16b.AsByte());
-                min = v2_16b.GetElement(0);
-            }
+            uint min = VectorUtils.MinAcrossLower(v0_16b);
             var v3_16b = Vector128.Create((byte)min);
             v0_16b -= v3_16b;
             return new(v0_16b);
         }
+
+        public static PieceCountTuple AddSaturate(PieceCountTuple left, PieceCountTuple right)
+            => new(VectorUtils.AddSaturate(Vector128.CreateScalarUnsafe(left.medium).AsByte(), Vector128.CreateScalarUnsafe(right.medium).AsByte()));
 
         public static PieceCountTuple operator +(PieceCountTuple left, PieceCountTuple right)
         {
@@ -135,12 +203,13 @@ namespace Cometris.Pieces.Counting
         public static bool operator ==(PieceCountTuple left, PieceCountTuple right) => left.Equals(right);
         public static bool operator !=(PieceCountTuple left, PieceCountTuple right) => !(left == right);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public double GetInternalValue() => medium;
 
         private string GetDebuggerDisplay()
         {
             var sb = new StringBuilder();
-            ReadOnlySpan<Piece> pieces = [Piece.T, Piece.I, Piece.O, Piece.J, Piece.L, Piece.S, Piece.Z];
+            var pieces = PiecesUtils.AllValidPieces;
             foreach (var item in pieces)
             {
                 _ = sb.Append($"{item}: {this[item]}, ");
@@ -153,5 +222,19 @@ namespace Cometris.Pieces.Counting
         public override bool Equals(object? obj) => obj is PieceCountTuple tuple && Equals(tuple);
         public bool Equals(PieceCountTuple other) => MaskedValue == other.MaskedValue;
         public override int GetHashCode() => HashCode.Combine(MaskedValue);
+        public bool ContainsKey(Piece key) => (uint)key < 8;
+        public bool TryGetValue(Piece key, [MaybeNullWhen(false)] out byte value)
+        {
+            value = this[key];
+            return (uint)key < 8;
+        }
+        public IEnumerator<KeyValuePair<Piece, byte>> GetEnumerator()
+        {
+            foreach (var item in PiecesUtils.AllPieces)
+            {
+                yield return new(item, this[item]);
+            }
+        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

@@ -37,6 +37,10 @@ namespace Cometris.Pieces
 
     public static class PiecesUtils
     {
+        public static ReadOnlySpan<Piece> AllValidPieces => [Piece.T, Piece.I, Piece.O, Piece.J, Piece.L, Piece.S, Piece.Z];
+
+        public static ReadOnlySpan<Piece> AllPieces => [Piece.None, Piece.T, Piece.I, Piece.O, Piece.J, Piece.L, Piece.S, Piece.Z];
+
         public static CombinablePieces ToFlag(this Piece piece) => (CombinablePieces)(1u << ((int)(uint)(byte)piece - 1));
 
         public static Piece GetFirstPiece(this CombinablePieces pieces)
