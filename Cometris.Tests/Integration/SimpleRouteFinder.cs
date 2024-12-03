@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 
 using Cometris.Boards;
 using Cometris.Movements;
@@ -13,35 +13,35 @@ namespace Cometris.Tests.Integration
         where TBitBoard : unmanaged, IOperableBitBoard<TBitBoard, ushort>
     {
         private static void FindNextStepsWithPiece<TBufferWriter>(TBitBoard board, Piece piece, AngleTuple<TBufferWriter> writer)
-            where TBufferWriter : IBufferWriter<CompressedPositionsTuple>
+            where TBufferWriter : IBufferWriter<CompressedPointList>
         {
             switch (piece)
             {
                 case Piece.T:
-                    FindNextStepsAsymmetric<PieceTMovablePointLocater<TBitBoard>, AsymmetricPieceReachablePointLocater<TBitBoard, PieceTRotatabilityLocator<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsAsymmetric<PieceTMovablePointLocater<TBitBoard>, AsymmetricPieceReachablePointLocater<TBitBoard, PieceTRotatabilityLocator<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
                 case Piece.I:
-                    FindNextStepsTwoRotationSymmetric<PieceIMovablePointLocater<TBitBoard>, TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, PieceIRotatabilityLocator<TBitBoard>, PieceIMovablePointLocater<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsTwoRotationSymmetric<PieceIMovablePointLocater<TBitBoard>, TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, PieceIRotatabilityLocator<TBitBoard>, PieceIMovablePointLocater<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
                 case Piece.O:
-                    FindNextStepsSymmetric<PieceOMovablePointLocater<TBitBoard>, SymmetricPieceReachablePointLocater<TBitBoard>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsSymmetric<PieceOMovablePointLocater<TBitBoard>, SymmetricPieceReachablePointLocater<TBitBoard>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
                 case Piece.J:
-                    FindNextStepsAsymmetric<PieceJMovablePointLocater<TBitBoard>, AsymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsAsymmetric<PieceJMovablePointLocater<TBitBoard>, AsymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
                 case Piece.L:
-                    FindNextStepsAsymmetric<PieceLMovablePointLocater<TBitBoard>, AsymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsAsymmetric<PieceLMovablePointLocater<TBitBoard>, AsymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
                 case Piece.S:
-                    FindNextStepsTwoRotationSymmetric<PieceSMovablePointLocater<TBitBoard>, TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>, PieceSMovablePointLocater<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsTwoRotationSymmetric<PieceSMovablePointLocater<TBitBoard>, TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>, PieceSMovablePointLocater<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
                 case Piece.Z:
-                    FindNextStepsTwoRotationSymmetric<PieceZMovablePointLocater<TBitBoard>, TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>, PieceZMovablePointLocater<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPositionsTuple>>());
+                    FindNextStepsTwoRotationSymmetric<PieceZMovablePointLocater<TBitBoard>, TwoRotationSymmetricPieceReachablePointLocater<TBitBoard, PieceJLSZRotatabilityLocator<TBitBoard>, PieceZMovablePointLocater<TBitBoard>>>(board, writer.As<TBufferWriter, IBufferWriter<CompressedPointList>>());
                     return;
             }
         }
 
-        private static void FindNextStepsAsymmetric<TPieceMovablePointLocater, TPieceReachablePointLocater>(TBitBoard board, AngleTuple<IBufferWriter<CompressedPositionsTuple>> writer)
+        private static void FindNextStepsAsymmetric<TPieceMovablePointLocater, TPieceReachablePointLocater>(TBitBoard board, AngleTuple<IBufferWriter<CompressedPointList>> writer)
             where TPieceMovablePointLocater : IAsymmetricPieceMovablePointLocater<TBitBoard>
             where TPieceReachablePointLocater : IAsymmetricPieceReachablePointLocater<TBitBoard>
         {
@@ -57,7 +57,7 @@ namespace Cometris.Tests.Integration
             _ = TBitBoard.LocateAllBlocks(hardDropPlaceableLeft, writer.Left);
         }
 
-        private static void FindNextStepsTwoRotationSymmetric<TPieceMovablePointLocater, TPieceReachablePointLocater>(TBitBoard board, AngleTuple<IBufferWriter<CompressedPositionsTuple>> writer)
+        private static void FindNextStepsTwoRotationSymmetric<TPieceMovablePointLocater, TPieceReachablePointLocater>(TBitBoard board, AngleTuple<IBufferWriter<CompressedPointList>> writer)
             where TPieceMovablePointLocater : ITwoRotationSymmetricPieceMovablePointLocater<TBitBoard>
             where TPieceReachablePointLocater : ITwoRotationSymmetricPieceReachablePointLocater<TBitBoard>
         {
@@ -72,7 +72,7 @@ namespace Cometris.Tests.Integration
             _ = TBitBoard.LocateAllBlocks(right, writer.Right);
         }
 
-        private static void FindNextStepsSymmetric<TPieceMovablePointLocater, TPieceReachablePointLocater>(TBitBoard board, AngleTuple<IBufferWriter<CompressedPositionsTuple>> writer)
+        private static void FindNextStepsSymmetric<TPieceMovablePointLocater, TPieceReachablePointLocater>(TBitBoard board, AngleTuple<IBufferWriter<CompressedPointList>> writer)
             where TPieceMovablePointLocater : ISymmetricPieceMovablePointLocater<TBitBoard>
             where TPieceReachablePointLocater : ISymmetricPieceReachablePointLocater<TBitBoard>
         {

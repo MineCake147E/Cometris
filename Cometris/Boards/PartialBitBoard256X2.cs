@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Diagnostics;
@@ -1357,7 +1357,7 @@ namespace Cometris.Boards
             return new(ymm0.AsUInt16(), ymm1.AsUInt16());
         }
 
-        public static int LocateAllBlocks(PartialBitBoard256X2 board, IBufferWriter<CompressedPositionsTuple> writer)
+        public static int LocateAllBlocks(PartialBitBoard256X2 board, IBufferWriter<CompressedPointList> writer)
         {
             if (IsBoardZero(board)) return 0;
             var count = TotalBlocks(board);

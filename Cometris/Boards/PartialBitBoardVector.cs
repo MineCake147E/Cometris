@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -80,7 +80,7 @@ namespace Cometris.Boards
         public static PartialBitBoardVector LineSelect(Vector<ushort> mask, PartialBitBoardVector left, PartialBitBoardVector right) => throw new NotImplementedException();
         public static PartialBitBoardVector LoadUnsafe(ref ushort source, nint elementOffset) => throw new NotImplementedException();
         public static PartialBitBoardVector LoadUnsafe(ref ushort source, nuint elementOffset = 0U) => throw new NotImplementedException();
-        public static int LocateAllBlocks(PartialBitBoardVector board, IBufferWriter<CompressedPositionsTuple> writer) => throw new NotImplementedException();
+        public static int LocateAllBlocks(PartialBitBoardVector board, IBufferWriter<CompressedPointList> writer) => throw new NotImplementedException();
         public static Vector<ushort> MaskAnd(Vector<ushort> left, Vector<ushort> right) => throw new NotImplementedException();
         public static Vector<ushort> MaskOr(Vector<ushort> left, Vector<ushort> right) => throw new NotImplementedException();
         public static Vector<ushort> MaskUnaryNegation(Vector<ushort> mask) => throw new NotImplementedException();

@@ -213,7 +213,7 @@ namespace Cometris.Boards
             var v3_8h = Vector128.LoadUnsafe(ref source, elementOffset + 3 * (nuint)Vector128<ushort>.Count);
             return new(v0_8h, v1_8h, v2_8h, v3_8h);
         }
-        public static int LocateAllBlocks(PartialBitBoard128X4 board, IBufferWriter<CompressedPositionsTuple> writer) => throw new NotImplementedException();
+        public static int LocateAllBlocks(PartialBitBoard128X4 board, IBufferWriter<CompressedPointList> writer) => throw new NotImplementedException();
         public static PartialBitBoard128X4 ShiftDownOneLine(PartialBitBoard128X4 board, ushort upperFeedValue)
         {
             var (v0_16b, v1_16b, v2_16b, v3_16b) = (board.Storage0.AsByte(), board.Storage1.AsByte(), board.Storage2.AsByte(), board.Storage3.AsByte());

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -15,7 +15,7 @@ namespace Cometris.Intelligence.Graph.PieceSequence
         public Piece PieceToPlace { get; }
         public Piece CurrentHold { get; }
         public SequentialPieceNodeBase? Parent { get; }
-        public CombinatorialPieceNode? CombinatorialSiblings { get; }
+        public PieceCountNode? CombinatorialSiblings { get; }
         public SequentialPieceNodeBase? HoldReleasingChild { get; }
 
         public virtual ReadOnlySpan<SequentialPieceNodeBase> Children => [];

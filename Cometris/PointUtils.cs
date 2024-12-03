@@ -1,4 +1,4 @@
-﻿using System.Runtime.Intrinsics.X86;
+using System.Runtime.Intrinsics.X86;
 
 using MikoMino;
 
@@ -9,15 +9,15 @@ namespace Cometris
         public const long PointCompressionRange = 0x0000_003f_0000_000fL;
         public static uint Compress(this Point value)
         {
-            var posv = value.Value;
+            var v = value.Value;
             if (Bmi2.X64.IsSupported)
             {
-                return (uint)Bmi2.X64.ParallelBitExtract((ulong)posv, PointCompressionRange);
+                return (uint)Bmi2.X64.ParallelBitExtract((ulong)v, PointCompressionRange);
             }
-            posv &= PointCompressionRange;
-            var posy = posv >>> 28;
-            posv |= posy;
-            return (uint)posv;
+            v &= PointCompressionRange;
+            var posy = v >>> 28;
+            v |= posy;
+            return (uint)v;
         }
         public static Point Expand(uint point)
         {
@@ -27,10 +27,10 @@ namespace Cometris
                 {
                     return new((long)Bmi2.X64.ParallelBitDeposit(point, PointCompressionRange));
                 }
-                var posv = (ulong)(point & 0x03FFu);
-                posv |= posv << 28;
-                posv &= PointCompressionRange;
-                return new((long)posv);
+                var v = (ulong)(point & 0x03FFu);
+                v |= v << 28;
+                v &= PointCompressionRange;
+                return new((long)v);
             }
         }
     }

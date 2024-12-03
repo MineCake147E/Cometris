@@ -65,7 +65,7 @@ namespace Cometris.Tests.Pieces.Permutation
                 var id = (ushort)i;
                 pieces.CopyTo(bagSpan);
                 PermuteBag(bagSpan, id);
-                var k = CompressedPieceList.Create(PiecePermutationUtils.CalculatePermutation(id));
+                var k = PieceListUtils.Create(PiecePermutationUtils.CalculatePermutation(id));
                 Assert.That(k, Is.EqualTo(bag), $"Testing {id}th permutation");
             }
         }

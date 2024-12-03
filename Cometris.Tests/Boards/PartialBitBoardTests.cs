@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -891,7 +891,7 @@ namespace Cometris.Tests.Boards
             => Assert.Multiple(() =>
             {
                 var remaining = board;
-                ArrayBufferWriter<CompressedPositionsTuple> writer = new();
+                ArrayBufferWriter<CompressedPointList> writer = new();
                 var count = TBitBoard.LocateAllBlocks(board, writer);
                 Assert.That(count, Is.EqualTo(TBitBoard.TotalBlocks(board)));
                 foreach (var item in writer.WrittenSpan.ToArray().SelectMany(a => a))

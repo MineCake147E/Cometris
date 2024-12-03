@@ -28,7 +28,7 @@ namespace Cometris.Pieces.Counting
 
         public ulong MaskedValue => Value & ~0xfful;
 
-        [SuppressMessage("Major Code Smell", "S1168:Empty arrays and collections should be returned instead of null", Justification = "<Pending>")]
+        [SuppressMessage("Major Code Smell", "S1168:Empty arrays and collections should be returned instead of null", Justification = "Slow if applied")]
         public static PieceCountTuple Zero => default;
 
         IEnumerable<Piece> IReadOnlyDictionary<Piece, byte>.Keys => [.. PiecesUtils.AllPieces];
@@ -44,6 +44,7 @@ namespace Cometris.Pieces.Counting
         public int Count => 8;
         #region Constructors and Create methods
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PieceCountTuple(byte countForAllPieces)
         {
             this = new(Vector128.Create(countForAllPieces));
@@ -75,6 +76,7 @@ namespace Cometris.Pieces.Counting
             this.medium = medium.AsDouble().GetElement(0);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public PieceCountTuple(BagPieceSet pieces)
         {
             if (Bmi2.X64.IsSupported)
@@ -228,13 +230,27 @@ namespace Cometris.Pieces.Counting
             value = this[key];
             return (uint)key < 8;
         }
-        public IEnumerator<KeyValuePair<Piece, byte>> GetEnumerator()
+        public Enumerator GetEnumerator() => new(Value);
+
+        IEnumerator<KeyValuePair<Piece, byte>> IEnumerable<KeyValuePair<Piece, byte>>.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<KeyValuePair<Piece, byte>>)this).GetEnumerator();
+
+        public struct Enumerator(ulong value) : IEnumerator<KeyValuePair<Piece, byte>>
         {
-            foreach (var item in PiecesUtils.AllPieces)
+            private readonly ulong originalValue = value;
+            private int index = -8;
+
+            public readonly KeyValuePair<Piece, byte> Current => new((Piece)(index >>> 3), (byte)(originalValue >> index));
+
+            readonly object IEnumerator.Current => Current;
+
+            public void Dispose() => index = 0;
+            public bool MoveNext()
             {
-                yield return new(item, this[item]);
+                var k = index += 8;
+                return k < 64;
             }
+            public void Reset() => index = -8;
         }
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -1678,7 +1678,7 @@ namespace Cometris.Boards
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
         public static bool GetBlockAtFullRange(ushort line, int x) => PartialBitBoard256X2.GetBlockAtFullRange(line, x);
         [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-        public static int LocateAllBlocks(PartialBitBoard512 board, IBufferWriter<CompressedPositionsTuple> writer)
+        public static int LocateAllBlocks(PartialBitBoard512 board, IBufferWriter<CompressedPointList> writer)
         {
             if (Vector512.EqualsAll(board.Value, default)) return 0;
             var count = TotalBlocks(board);

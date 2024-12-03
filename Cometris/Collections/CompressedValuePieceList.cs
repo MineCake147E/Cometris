@@ -91,11 +91,11 @@ namespace Cometris.Collections
             return new(v);
         }
 
-        public BagEnumerator GetEnumerator() => new(value);
+        public Enumerator GetEnumerator() => new(value);
         IEnumerator<Piece> IEnumerable<Piece>.GetEnumerator() => GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public struct BagEnumerator(TStorage value) : IEnumerator<Piece>
+        public struct Enumerator(TStorage value) : IEnumerator<Piece>
         {
             private readonly TStorage value = value;
             private int index = -3;
@@ -132,13 +132,5 @@ namespace Cometris.Collections
 
         public static bool operator ==(CompressedValuePieceList<TStorage> left, CompressedValuePieceList<TStorage> right) => left.Equals(right);
         public static bool operator !=(CompressedValuePieceList<TStorage> left, CompressedValuePieceList<TStorage> right) => !(left == right);
-    }
-
-    public static class CompressedPieceList
-    {
-        public static CompressedValuePieceList<TStorage> Create<TStorage>(TStorage value) where TStorage : IBinaryInteger<TStorage>, IUnsignedNumber<TStorage>
-            => new(value);
-        public static CompressedValuePieceList<TStorage> Create<TStorage>(ReadOnlySpan<Piece> pieces) where TStorage : IBinaryInteger<TStorage>, IUnsignedNumber<TStorage>
-            => new(pieces);
     }
 }

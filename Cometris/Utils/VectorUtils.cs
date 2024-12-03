@@ -77,12 +77,12 @@ namespace Cometris.Utils
             var v0_8h = value;
             if (AdvSimd.IsSupported)
             {
-                var v1_4h = Vector64.Create((byte)(index * 2));
+                var v1_4h = Vector64.Create((byte)(index * 2)) + Vector64<byte>.Indices;
                 return AdvSimd.VectorTableLookup(v0_8h.AsByte(), v1_4h).AsUInt16().GetElement(0);
             }
             if (Ssse3.IsSupported)
             {
-                var xmm1 = Vector128.Create((byte)(index * 2));
+                var xmm1 = Vector128.Create((byte)(index * 2)) + Vector128<byte>.Indices;
                 return Ssse3.Shuffle(v0_8h.AsByte(), xmm1).AsUInt16().GetElement(0);
             }
             // Fallback

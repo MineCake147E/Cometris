@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -243,7 +243,7 @@ namespace Cometris.Boards
 
         static abstract bool GetBlockAtFullRange(TLineElement line, int x);
 
-        static abstract int LocateAllBlocks(TSelf board, IBufferWriter<CompressedPositionsTuple> writer);
+        static abstract int LocateAllBlocks(TSelf board, IBufferWriter<CompressedPointList> writer);
 
         static virtual IEnumerable<Point> LocateAllBlocks(TSelf board)
         {

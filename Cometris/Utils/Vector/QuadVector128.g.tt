@@ -166,7 +166,7 @@ namespace Cometris.Utils.Vector
         var elementNames = Enumerable.Range(0, elements).Select(a => $"e{a}").ToArray();
 #>
         public static QuadVector128<<#=t.name#>> Create(<#=string.Join(", ", elementParamNames)#>)
-            => new(<#=string.Join(", ", Enumerable.Range(0, 4).Select(a => $"Vector128.Create({string.Join(", ", new ArraySegment<string>(elementNames, a * elementsPerVector128, elementsPerVector128))})"))#>);
+            => new(<#=string.Join(", ", Enumerable.Range(0, 4).Select(a => $"Vector128.Create({string.Join(", ", new ArraySegment<string>(elementNames, a * elementsPerVector128, elementsPerVector128).AsSpan())})"))#>);
         
 <#  }
     foreach(var t in types){#>

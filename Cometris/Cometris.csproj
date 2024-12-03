@@ -34,7 +34,6 @@
     <ItemGroup>
       <Folder Include="Boards\Storage\" />
       <Folder Include="Intelligence\Graph\Bag\" />
-      <Folder Include="Intelligence\Graph\Indexing\" />
     </ItemGroup>
 
     

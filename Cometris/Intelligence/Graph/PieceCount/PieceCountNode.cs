@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,7 +8,7 @@ using Cometris.Pieces.Counting;
 
 namespace Cometris.Intelligence.Graph.PieceCount
 {
-    public sealed class CombinatorialPieceNode
+    public sealed class PieceCountNode
     {
         private PieceCountTuple pieceCounts;
 

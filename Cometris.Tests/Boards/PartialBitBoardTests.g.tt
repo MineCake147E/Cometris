@@ -19,7 +19,7 @@ namespace Cometris.Tests.Boards
     [TestFixture(typeof(PartialBitBoard256X2), typeof(PartialBitBoard256X2))]
     [TestFixture(typeof(PartialBitBoard512), typeof(Vector512<ushort>))]
     public partial class ShiftVerticalConstantTests<TBitBoard, TLineMask>
-        where TBitBoard : unmanaged, IMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
+        where TBitBoard : unmanaged, ICompactMaskableBitBoard<TBitBoard, ushort, TLineMask, uint>
         where TLineMask : unmanaged, IEquatable<TLineMask>
     {
         #region ShiftDownConstant
